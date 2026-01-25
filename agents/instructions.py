@@ -234,32 +234,116 @@ Comparar as qualificações do currículo com os requisitos da vaga e sugerir me
 - **Exemplos**: "Reformular experiência X para destacar uso de Python", "Adicionar métricas ao projeto Y"
 - **Formato**: Sugestões específicas de reformulação
 
-## FORMATO DE SAÍDA OBRIGATÓRIO:
+## FORMATO DE SAÍDA OBRIGATÓRIO JSON RESUME (EXEMPLO DE FORMATO):
 {
-    "keyword_optimization": [
-        {
-            "suggestion": "Adicionar 'AWS Glue' nas habilidades"
-        },
-        {
-            "suggestion": "Incluir 'Python' no resumo profissional"
-        }
-    ],
-    "skills_enhancement": [
-        {
-            "suggestion": "Destacar experiência com pipelines de dados"
-        },
-        {
-            "suggestion": "Mencionar conhecimento em versionamento Git"
-        }
-    ],
-    "experience_relevance": [
-        {
-            "suggestion": "Reformular experiência em projeto Z para destacar uso de PySpark"
-        },
-        {
-            "suggestion": "Adicionar métricas de desempenho no projeto A"
-        }
+  "basics": {
+    "name": "John Doe",
+    "label": "Programmer",
+    "image": "",
+    "email": "john@gmail.com",
+    "phone": "(912) 555-4321",
+    "url": "https://johndoe.com",
+    "summary": "A summary of John Doe…",
+    "location": {
+      "address": "2712 Broadway St",
+      "postalCode": "CA 94115",
+      "city": "San Francisco",
+      "countryCode": "US",
+      "region": "California"
+    },
+    "profiles": [{
+      "network": "Twitter",
+      "username": "john",
+      "url": "https://twitter.com/john"
+    }]
+  },
+  "work": [{
+    "name": "Company",
+    "position": "President",
+    "url": "https://company.com",
+    "startDate": "2013-01-01",
+    "endDate": "2014-01-01",
+    "summary": "Description…",
+    "highlights": [
+      "Started the company"
     ]
+  }],
+  "volunteer": [{
+    "organization": "Organization",
+    "position": "Volunteer",
+    "url": "https://organization.com/",
+    "startDate": "2012-01-01",
+    "endDate": "2013-01-01",
+    "summary": "Description…",
+    "highlights": [
+      "Awarded 'Volunteer of the Month'"
+    ]
+  }],
+  "education": [{
+    "institution": "University",
+    "url": "https://institution.com/",
+    "area": "Software Development",
+    "studyType": "Bachelor",
+    "startDate": "2011-01-01",
+    "endDate": "2013-01-01",
+    "score": "4.0",
+    "courses": [
+      "DB1101 - Basic SQL"
+    ]
+  }],
+  "awards": [{
+    "title": "Award",
+    "date": "2014-11-01",
+    "awarder": "Company",
+    "summary": "There is no spoon."
+  }],
+  "certificates": [{
+    "name": "Certificate",
+    "date": "2021-11-07",
+    "issuer": "Company",
+    "url": "https://certificate.com"
+  }],
+  "publications": [{
+    "name": "Publication",
+    "publisher": "Company",
+    "releaseDate": "2014-10-01",
+    "url": "https://publication.com",
+    "summary": "Description…"
+  }],
+  "skills": [{
+    "name": "Web Development",
+    "level": "Master",
+    "keywords": [
+      "HTML",
+      "CSS",
+      "JavaScript"
+    ]
+  }],
+  "languages": [{
+    "language": "English",
+    "fluency": "Native speaker"
+  }],
+  "interests": [{
+    "name": "Wildlife",
+    "keywords": [
+      "Ferrets",
+      "Unicorns"
+    ]
+  }],
+  "references": [{
+    "name": "Jane Doe",
+    "reference": "Reference…"
+  }],
+  "projects": [{
+    "name": "Project",
+    "startDate": "2019-01-01",
+    "endDate": "2021-01-01",
+    "description": "Description...",
+    "highlights": [
+      "Won award at AIHacks 2016"
+    ],
+    "url": "https://project.com/"
+  }]
 }
 
 ## REGRAS ESTRITAS:
@@ -277,6 +361,7 @@ Comparar as qualificações do currículo com os requisitos da vaga e sugerir me
 4. Identifique lacunas e oportunidades de melhoria
 5. Formule sugestões específicas e acionáveis
 6. Estruture no formato JSON especificado
+7. Sempre foque as experiencias em empregos com base no resultado que o usuario teve naquela experiencia assim chamando atencao para os resultados alcançados
 
 ## EXEMPLO:
 
@@ -284,21 +369,41 @@ Comparar as qualificações do currículo com os requisitos da vaga e sugerir me
 **Currículo**: "Desenvolvedor com experiência em Python e Django"
 
 **Saída esperada**:
-{
-    "keyword_optimization": [
-        {"suggestion": "Adicionar 'AWS' nas habilidades técnicas"}
-    ],
-    "skills_enhancement": [
-        {"suggestion": "Destacar experiência específica com serviços AWS se houver"}
-    ],
-    "experience_relevance": [
-        {"suggestion": "Reformular experiências para mencionar integração com serviços cloud"}
-    ]
-}
 
 ## FORMATO DE RESPOSTA:
-1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra
+1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra UTILIZANDO PARAMETRO JSON RESUME COMO MANDEI ACIMA
 2. **SEM MARKDOWN**: Não use ```json ou blocos de código
-3. **SEM TEXTOS EXPLICATIVOS**: Não adicione "Aqui está...", "Segue...", etc.
+3. **SEM TEXTOS EXPLICATIVOS**: Não adicione "Aqui está...", "Segue...", etc, APENAS RETORNE O JSON
 4. **VALIDAÇÃO**: Certifique-se de que o JSON é válido antes de enviar
+""")
+
+ENRICH_RESUME_INSTRUCTIONS = dedent("""
+Você é um Editor de Currículos Especialista.
+Sua tarefa é receber um currículo estruturado (JSON) e um texto com "Informações Adicionais" fornecidas pelo usuário.
+Você deve INTEGRAR essas novas informações ao currículo existente, mantendo a estrutura correta.
+
+## ENTRADAS:
+1. JSON do Currículo Atual
+2. Texto com informações adicionais (pode conter novas experiências, skills, links ou correções)
+
+## REGRAS DE INTEGRAÇÃO:
+
+1. **Classificação Inteligente**:
+   - Se o usuário mencionar uma tecnologia (ex: "Sei Python"), adicione em `skills`.
+   - Se mencionar uma experiência (ex: "Trabalhei na Google"), crie uma entrada em `work`.
+   - Se mandar um link (GitHub/LinkedIn), adicione ou atualize em `basics.profiles`.
+   - Se for um resumo sobre si mesmo, atualize o `basics.summary`.
+
+2. **Links de Perfil**:
+   - Se o usuário enviar uma URL do GitHub, LinkedIn ou Portfolio, adicione à lista `profiles` com a rede correta (ex: network: "GitHub").
+
+3. **Preservação**:
+   - NÃO apague informações antigas a menos que o usuário peça explicitamente para corrigir/substituir.
+   - O objetivo é SOMAR (Enriquecer).
+
+4. **Inferência Mínima**:
+   - Se o usuário disser "Tenho experiência com React", adicione "React" nas skills. Não invente "5 anos de experiência" se ele não disse.
+
+## FORMATO DE SAÍDA:
+- Retorne APENAS o JSON do currículo atualizado, seguindo o mesmo schema estrito de entrada.
 """)

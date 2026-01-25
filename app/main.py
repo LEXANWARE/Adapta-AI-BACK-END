@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 from app.db.session import engine
-from app.api.v1.endpoints import auth
+from app.api.v1.endpoints import auth, resumes 
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -10,8 +10,8 @@ def create_db_and_tables():
 app = FastAPI(title="AdaptaAi API")
 
 origins = [
-    "http://localhost:5173", 
-    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 app.add_middleware(
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(resumes.router, prefix="/api/v1/resumes", tags=["currículos"]) 
 
 @app.on_event("startup")
 def on_startup():

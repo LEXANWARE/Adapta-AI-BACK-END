@@ -1,43 +1,60 @@
 from agno.agent import Agent
-from agno.models.openrouter import OpenRouter
+from agno.models.openai import OpenAIChat # <--- Mudamos de Google para OpenAI (padrão OpenRouter)
 from dotenv import load_dotenv
+import os
 
-# --- CORREÇÃO DOS IMPORTS AQUI ---
-# Usamos 'agents.' antes para indicar que está dentro da pasta
-from agents.instructions import VACANCY_AGENT_INSTRUCTIONS, RESUME_AGENT_INSTRUCTIONS, UPGRADE_RESUME_AGENT_INSTRUCTIONS
+from agents.instructions import (
+    VACANCY_AGENT_INSTRUCTIONS, 
+    RESUME_AGENT_INSTRUCTIONS, 
+    UPGRADE_RESUME_AGENT_INSTRUCTIONS,
+    ENRICH_RESUME_INSTRUCTIONS
+)
 from agents.schemas.vacancy import VacancyKeyThemes
 from agents.schemas.resume import ResumeScheme
 
 load_dotenv()
 
+MODEL_ID = "google/gemini-2.0-flash-001" 
+
+model_instance = OpenAIChat(
+    id=MODEL_ID,
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+    base_url="https://openrouter.ai/api/v1", # <--- URL Mágica do OpenRouter
+)
+
+
 vacancy_agent = Agent(
     name="vacancy_agent",
-    description="Agent that generates a job description based on a job description",
-    model=OpenRouter(
-        id="bytedance-seed/seedream-4.5",
-        instructions=VACANCY_AGENT_INSTRUCTIONS,
-    ),
+    description="Agente que analisa descrições de vagas",
+    model=model_instance,
+    instructions=VACANCY_AGENT_INSTRUCTIONS,
     output_schema=VacancyKeyThemes,
-    # debug_mode=True, 
+    debug_mode=False
 )
 
 resume_agent = Agent(
     name="resume_agent",
-    description="Agent that generates a resume based on a job description",
-    model=OpenRouter(
-        id="bytedance-seed/seedream-4.5",
-        instructions=RESUME_AGENT_INSTRUCTIONS,
-    ),
+    description="Agente que converte currículos para JSON",
+    model=model_instance,
+    instructions=RESUME_AGENT_INSTRUCTIONS,
     output_schema=ResumeScheme,
-    # debug_mode=True,
+    debug_mode=False
 )
 
 resume_upgrade_agent = Agent(
     name="resume_upgrade_agent",
-    description="Agent that optimizes a resume for a specific job vacancy",
-    model=OpenRouter(
-        id="bytedance-seed/seedream-4.5",
-        instructions=UPGRADE_RESUME_AGENT_INSTRUCTIONS,
-    ),
-    output_schema=ResumeScheme, # Garante que a saída seja estruturada
+    description="Agente que melhora currículos",
+    model=model_instance,
+    instructions=UPGRADE_RESUME_AGENT_INSTRUCTIONS,
+    output_schema=ResumeScheme,
+    debug_mode=False
+)
+
+resume_enricher_agent = Agent(
+    name="resume_enricher_agent",
+    description="Agente que adiciona informações extras ao currículo",
+    model=model_instance,
+    instructions=ENRICH_RESUME_INSTRUCTIONS,
+    output_schema=ResumeScheme,
+    debug_mode=False
 )

@@ -1,10 +1,14 @@
+from typing import List
 from pydantic import BaseModel, Field
 
+STRICT_CONFIG = {"extra": "forbid"}
+
 class KeyElement(BaseModel):
-    element_name: str = Field(..., description="Name of the Key Element")
+    model_config = STRICT_CONFIG
+    element_name: str = Field(..., description="Nome do elemento chave")
 
 class VacancyKeyThemes(BaseModel):
-    key_tools: list[KeyElement] = Field(..., description="Key Frameworks of Vacancy")
-    key_skills: list[KeyElement] = Field(..., description="Key Skills besides the knowledge of Frameworks of Vacancy")
-    key_phrases: list[KeyElement] = Field(..., description="Key Phrases of Vacancy")
-
+    model_config = STRICT_CONFIG
+    key_tools: List[KeyElement] = Field(default_factory=list, description="Ferramentas e tecnologias principais")
+    key_skills: List[KeyElement] = Field(default_factory=list, description="Habilidades técnicas e comportamentais")
+    key_phrases: List[KeyElement] = Field(default_factory=list, description="Frases chaves ou diferenciais da vaga")
