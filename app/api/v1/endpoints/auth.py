@@ -27,13 +27,23 @@ def login_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/register")
-def register_user(username: str, password: str, email: str, session: Session = Depends(get_session)):
+def register_user(
+    register_data: RegisterRequest, 
+    session: Session = Depends(get_session)
+):
+    if session.exec(select(User).where(User.username == register_data.username)).first():
+        raise HTTPException(status_code=400, detail="Este usuário já existe.")
+
+    if session.exec(select(User).where(User.email == register_data.email)).first():
+        raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado.")
+
     user = User(
-        username=username, 
-        email=email, 
-        hashed_password=get_password_hash(password)
+        username=register_data.username, 
+        email=register_data.email, 
+        hashed_password=get_password_hash(register_data.password)
     )
     session.add(user)
     session.commit()
     session.refresh(user)
+    
     return {"msg": "Usuário criado com sucesso", "id": user.id}
