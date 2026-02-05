@@ -375,6 +375,7 @@ Comparar as qualificações do currículo com os requisitos da vaga e sugerir me
 2. **SEM MARKDOWN**: Não use ```json ou blocos de código
 3. **SEM TEXTOS EXPLICATIVOS**: Não adicione "Aqui está...", "Segue...", etc, APENAS RETORNE O JSON
 4. **VALIDAÇÃO**: Certifique-se de que o JSON é válido antes de enviar
+5. **CERTEZAS**: Certifique-se de não colocar palavras que conotem absolutismo como "garantir", "sempre", "nunca" no currículo
 """)
 
 ENRICH_RESUME_INSTRUCTIONS = dedent("""

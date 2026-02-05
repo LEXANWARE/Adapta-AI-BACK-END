@@ -12,13 +12,13 @@ from agents.instructions import (
 from agents.schemas.vacancy import VacancyKeyThemes
 from agents.schemas.resume import ResumeScheme
 
-load_dotenv()
+load_dotenv(dotenv_path="../.env")
 
 MODEL_ID = "google/gemini-2.0-flash-001" 
 
 model_instance = OpenAIChat(
     id=MODEL_ID,
-    api_key=os.getenv("OPENROUTER_API_KEY"),
+    api_key=os.getenv("OPENAI_API_KEY"),
     base_url="https://openrouter.ai/api/v1", # <--- URL Mágica do OpenRouter
 )
 
