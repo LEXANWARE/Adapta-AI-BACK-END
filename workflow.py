@@ -13,7 +13,6 @@ from agents.models import (
 )
 from agents.utils.pdf import gerar_pdf 
 
-load_dotenv()
 
 def has_additional_info(step_input: StepInput) -> bool:
     """Retorna True se houver informações adicionais do candidato"""

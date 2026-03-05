@@ -2,6 +2,7 @@ from agno.agent import Agent
 from agno.models.openai import OpenAIChat # <--- Mudamos de Google para OpenAI (padrão OpenRouter)
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 from agents.instructions import (
     VACANCY_AGENT_INSTRUCTIONS, 
@@ -12,7 +13,8 @@ from agents.instructions import (
 from agents.schemas.vacancy import VacancyKeyThemes
 from agents.schemas.resume import ResumeScheme
 
-load_dotenv(dotenv_path="../.env")
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=Path(ENV_PATH))
 
 MODEL_ID = "google/gemini-2.0-flash-001" 
 
