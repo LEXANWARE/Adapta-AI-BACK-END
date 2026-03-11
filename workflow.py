@@ -1,17 +1,35 @@
 import os
 import json
-from dotenv import load_dotenv
-
-from agno.workflow import Condition, Parallel, Step, Workflow
 from agno.workflow.types import StepInput, StepOutput
+from agno.workflow import Condition, Parallel, Step, Workflow
+from opentelemetry import trace as trace_api
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from openinference.instrumentation.agno import AgnoInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
+from agents.utils.pdf import gerar_pdf 
 from agents.models import (
     vacancy_agent,
     resume_agent,
     resume_upgrade_agent,
     resume_enricher_agent,
 )
-from agents.utils.pdf import gerar_pdf 
+
+# Set the endpoint and headers for LangSmith
+endpoint = "https://api.smith.langchain.com/otel/v1/traces"
+
+headers = {
+    "x-api-key": os.getenv("LANGSMITH_API_KEY"),
+    "Langsmith-Project": os.getenv("LANGSMITH_PROJECT"),
+}
+
+# Configure the tracer provider
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(
+    SimpleSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
+)
+AgnoInstrumentor().instrument(tracer_provider=tracer_provider)
 
 
 def has_additional_info(step_input: StepInput) -> bool:
@@ -36,19 +54,31 @@ def prepare_resume_input(step_input: StepInput) -> StepOutput:
 
 
 def prepare_enrich_input(step_input: StepInput) -> StepOutput:
-    """Prepara input para enriquecimento com info adicional"""
+    """Prepara input para enriquecimento com info adicional.
+
+    O currículo pode ser texto livre ou já estar em JSON Resume.
+    O agente de enriquecimento sempre deve devolver um JSON Resume válido.
+    """
     data = step_input.additional_data or {}
     curriculo = data.get("curriculo", "")
     info_adicional = data.get("info_adicional", "")
     
     content = f"""
-CURRÍCULO ATUAL:
+### CURRICULO_ATUAL
+O bloco abaixo contém o currículo atual do candidato. Ele pode estar em TEXTO LIVRE ou já em formato JSON Resume.
+Use esse currículo como base estrutural.
+
 {curriculo}
 
-INFORMAÇÕES ADICIONAIS DO CANDIDATO:
+### INFORMACOES_ADICIONAIS
+O bloco abaixo contém informações adicionais enviadas pelo candidato. Use-as para enriquecer o currículo:
+
 {info_adicional}
 
-Integre as informações adicionais ao currículo existente.
+### TAREFA
+Atualize o currículo para incluir as informações adicionais, mantendo um único currículo final em formato JSON Resume.
+Respeite toda a estrutura do JSON Resume (basics, work, education, skills, projects, languages, etc.).
+Retorne APENAS o JSON do currículo atualizado.
 """
     return StepOutput(content=content)
 
@@ -103,7 +133,6 @@ def generate_pdf_step(step_input: StepInput) -> StepOutput:
     else:
         resume_dict = optimized_resume
     
-    # Gera o PDF
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     
@@ -112,11 +141,9 @@ def generate_pdf_step(step_input: StepInput) -> StepOutput:
     arquivo_pdf = f"{output_dir}/{nome_arquivo}_otimizado.pdf"
     arquivo_json = f"{output_dir}/{nome_arquivo}_otimizado.json"
     
-    # Salva JSON
     with open(arquivo_json, 'w', encoding='utf-8') as f:
         json.dump(resume_dict, f, ensure_ascii=False, indent=2)
     
-    # Gera PDF
     gerar_pdf(resume_dict, arquivo_pdf)
     
     return StepOutput(
@@ -125,12 +152,10 @@ def generate_pdf_step(step_input: StepInput) -> StepOutput:
     )
 
 
-# === WORKFLOW COMPLETO ===
 resume_optimizer_workflow = Workflow(
     name="Resume Optimizer",
     description="Otimiza currículos para vagas específicas e gera PDF",
     steps=[
-        # 1️⃣ Preparação de inputs em paralelo
         Parallel(
             Step(name="Prepare Vacancy", executor=prepare_vacancy_input),
             Step(name="Prepare Resume", executor=prepare_resume_input),
@@ -141,8 +166,6 @@ resume_optimizer_workflow = Workflow(
             ),
             name="Prepare Phase"
         ),
-        
-        # 2️⃣ Análises com agentes em paralelo
         Parallel(
             Step(name="Analyze Vacancy", agent=vacancy_agent),
             Step(name="Analyze Resume", agent=resume_agent),
@@ -153,72 +176,7 @@ resume_optimizer_workflow = Workflow(
             ),
             name="Analysis Phase"
         ),
-        
-        # 3️⃣ Combina as análises
         Step(name="Combine Analyses", executor=combine_for_upgrade),
-        
-        # 4️⃣ Gera currículo otimizado (retorna ResumeScheme)
         Step(name="Generate Optimized Resume", agent=resume_upgrade_agent),
-        
-        # 5️⃣ Gera PDF e JSON
-        Step(name="Generate PDF", executor=generate_pdf_step),
     ],
 )
-
-
-# === EXECUÇÃO ===
-if __name__ == "__main__":
-    result = resume_optimizer_workflow.run(
-        input="Otimize meu currículo para esta vaga",
-        additional_data={
-            "curriculo": """
-Maria Silva
-Email: maria@email.com | Tel: (11) 98765-4321
-São Paulo, SP
-
-EXPERIÊNCIA PROFISSIONAL:
-
-Desenvolvedora Full Stack - TechCorp (2021-2024)
-- Desenvolvimento de APIs REST com Python e Django
-- Frontend com React e TypeScript
-- Banco de dados PostgreSQL
-
-Estagiária de Desenvolvimento - StartupXYZ (2020-2021)
-- Suporte ao desenvolvimento de aplicações web
-- Testes automatizados
-
-FORMAÇÃO:
-Ciência da Computação - Universidade de São Paulo (2020)
-
-HABILIDADES:
-Python, Django, React, TypeScript, PostgreSQL, Git
-            """,
-            "vaga": """
-Vaga: Desenvolvedora Backend Sênior
-Empresa: BigTech Brasil
-
-Requisitos:
-- 4+ anos de experiência com Python
-- Experiência com FastAPI ou Django
-- Conhecimento em AWS (EC2, S3, Lambda)
-- Docker e Kubernetes
-- Inglês avançado
-
-Diferenciais:
-- Experiência com microsserviços
-- CI/CD (GitHub Actions, Jenkins)
-- Liderança técnica
-            """,
-            "info_adicional": """
-- Tenho certificação AWS Solutions Architect Associate
-- Liderei a migração de monolito para microsserviços no último emprego
-- Inglês fluente (morei 6 meses no Canadá)
-- Implementei CI/CD com GitHub Actions em 3 projetos
-            """,
-        },
-    )
-    
-    print("\n" + "=" * 50)
-    print("RESULTADO FINAL:")
-    print("=" * 50)
-    print(result.content)

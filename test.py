@@ -1,7 +1,7 @@
 import os
 import json
-from dotenv import load_dotenv
 from fpdf import FPDF
+from dotenv import load_dotenv
 
 load_dotenv()
 

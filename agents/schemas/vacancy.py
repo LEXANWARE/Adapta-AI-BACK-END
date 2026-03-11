@@ -1,7 +1,9 @@
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-STRICT_CONFIG = {"extra": "forbid"}
+STRICT_CONFIG = ConfigDict(
+    extra='ignore',
+)
 
 class KeyElement(BaseModel):
     model_config = STRICT_CONFIG
