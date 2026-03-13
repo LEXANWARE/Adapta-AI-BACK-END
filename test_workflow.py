@@ -1,4 +1,4 @@
-from workflow import resume_optimizer_workflow
+from agents.workflow import resume_optimizer_workflow
 from agents.utils.pdf import imprimir_json, salvar_json_final, gerar_pdf
 
 curriculo_texto_pdf = """LUCAS MELO DE SOUZA
@@ -138,7 +138,7 @@ Programa de Nutrição;
 Programa de Gestantes; 
 Licença Maternidade e Paternidade Estendida – empresa Cidadã."""
 
-result = resume_optimizer_workflow.run(
+resume_optimizer_workflow.run(
     input="Otimize meu currículo para esta vaga",
     additional_data={
         'curriculo': curriculo_texto_pdf,
@@ -146,16 +146,3 @@ result = resume_optimizer_workflow.run(
         'info_adicional': input_usuario_enrich
     }
 )
-
-print("\n" + "=" * 50)
-print("RESULTADO FINAL:")
-print("=" * 50)
-print(result.content)
-
- 
-dict_final = result.content.model_dump()
-imprimir_json("CURRÍCULO FINAL (PRONTO PRO ENVIO)", result)
-
-salvar_json_final(dict_final, 'curriculo.json')
-
-gerar_pdf(dict_final, 'curriculo_completo.pdf')
