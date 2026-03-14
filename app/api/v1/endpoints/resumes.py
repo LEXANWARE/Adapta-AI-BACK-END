@@ -1,12 +1,32 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import json
 import uuid
 
 from app.services.pdf import extract_text_from_pdf
+
+
+def _to_dict(content) -> dict:
+    """Converte response.content (modelo, dict ou string JSON) em dict."""
+    if content is None:
+        return {}
+    if isinstance(content, dict):
+        return content
+    if hasattr(content, "model_dump"):
+        return content.model_dump()
+    if isinstance(content, str):
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="Resposta da IA não é JSON válido.")
+    raise HTTPException(status_code=500, detail="Resposta da IA em formato inesperado.")
+
+
+from agents.models import vacancy_agent
 from app.db.session import get_session
 from app.models.user import User
 from app.models.resume import Resume
@@ -66,7 +86,7 @@ async def analyze_resume(
 
     try:
         response = resume_agent.run(text)
-        resume_data = response.content.model_dump()
+        resume_data = _to_dict(response.content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na IA: {e}")
 
@@ -101,7 +121,7 @@ async def enrich_resume(
 
     try:
         response = resume_enricher_agent.run(prompt)
-        new_data = response.content.model_dump()
+        new_data = _to_dict(response.content)
 
         resume.parsed_data = new_data
         session.add(resume)
@@ -135,7 +155,7 @@ async def adapt_resume(
 
     try:
         response = resume_upgrade_agent.run(prompt)
-        adapted_data = response.content.model_dump()
+        adapted_data = _to_dict(response.content)
 
         adapted_resume = Resume(
             user_id=current_user.id,
@@ -150,6 +170,71 @@ async def adapt_resume(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao adaptar: {e}")
+
+@router.post("/adapt-full")
+async def adapt_resume_full(
+    file: UploadFile = File(...),
+    vacancy_text: str = Form(...),
+    additional_info: str = Form(""),
+    current_user: User = Depends(get_current_user)
+):
+    """Recebe currículo (PDF), vaga e informações adicionais. Retorna JSON adaptado sem persistir."""
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Apenas PDF permitido.")
+
+    curriculum_text = await extract_text_from_pdf(file)
+    if not curriculum_text.strip():
+        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do PDF.")
+
+    try:
+        vacancy_response = vacancy_agent.run(vacancy_text)
+        resume_response = resume_agent.run(curriculum_text)
+        vacancy_analysis = str(_to_dict(vacancy_response.content)) if vacancy_response.content else ""
+        resume_analysis = str(_to_dict(resume_response.content)) if resume_response.content else ""
+
+        enriched_resume = ""
+        if additional_info and additional_info.strip():
+            resume_dict = _to_dict(resume_response.content)
+            enrich_prompt = f"""
+CURRÍCULO ATUAL (JSON):
+{json.dumps(resume_dict, ensure_ascii=False, indent=2)}
+
+INFORMAÇÕES ADICIONAIS DO USUÁRIO:
+{additional_info}
+"""
+            enrich_response = resume_enricher_agent.run(enrich_prompt)
+            enriched_resume = str(_to_dict(enrich_response.content)) if enrich_response.content else ""
+        else:
+            enriched_resume = "(Nenhuma informação adicional fornecida)"
+
+        combined_prompt = f"""
+## CURRÍCULO ORIGINAL:
+{curriculum_text}
+
+## ANÁLISE DA VAGA (Requisitos Identificados):
+{vacancy_analysis}
+
+## ANÁLISE DO CURRÍCULO ATUAL:
+{resume_analysis}
+
+## CURRÍCULO ENRIQUECIDO COM INFORMAÇÕES ADICIONAIS:
+{enriched_resume}
+
+---
+TAREFA: Com base nas análises acima, crie um currículo otimizado no formato JSON Resume.
+- Destaque as qualificações alinhadas aos requisitos da vaga
+- Use palavras-chave identificadas na análise da vaga
+- Foque em resultados e conquistas mensuráveis
+- Mantenha a estrutura completa do JSON Resume (incluindo basics, work, education, skills, profiles, etc.)
+- Retorne APENAS o JSON válido
+"""
+        upgrade_response = resume_upgrade_agent.run(combined_prompt)
+        adapted_data = _to_dict(upgrade_response.content)
+
+        return adapted_data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na adaptação: {str(e)}")
 
 @router.get("/{resume_id}")
 async def get_resume(
