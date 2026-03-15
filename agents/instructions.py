@@ -123,9 +123,11 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
 
 - **basics** (obrigatório)
   - name (string, obrigatório): Nome completo do candidato
+  - label (string, obrigatório se presente): Título profissional ou cargo alvo (ex: "Desenvolvedor FullStack")
   - email (string, opcional)
   - phone (string, opcional)
-  - summary (string, opcional): Resumo profissional em 2–4 frases
+  - summary (string, obrigatório se houver no texto): Resumo profissional em 2–4 frases
+  - profiles (lista, obrigatório se houver links): LinkedIn, GitHub e outras redes com network e url
   - location (objeto opcional):
     - address (string, opcional)
     - postalCode (string, opcional)
@@ -137,8 +139,8 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
   - Cada item possui:
     - name (string, obrigatório): Nome da empresa
     - position (string, obrigatório): Cargo ocupado
-    - startDate (string, opcional, ex: "2021-01")
-    - endDate (string, opcional, ex: "2023-06" ou "Presente")
+    - startDate (string, opcional): Use formato português legível (ex: "Jan 2025", "Dez 2024")
+    - endDate (string, opcional): Use formato português (ex: "Dez 2025", "Atual" ou "Em andamento")
     - summary (string, opcional): Descrição curta das responsabilidades
     - highlights (lista de string, opcional): Conquistas e resultados mensuráveis
 
@@ -147,8 +149,8 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
     - institution (string, obrigatório)
     - area (string, obrigatório): Curso ou área de estudo
     - studyType (string, obrigatório): Ex: "Bacharelado", "Tecnólogo"
-    - startDate (string, opcional)
-    - endDate (string, opcional)
+    - startDate (string, opcional): Formato português (ex: "Abr 2026")
+    - endDate (string, opcional): Formato português (ex: "Dez 2025", "Em andamento", "Concluído em Dez 2025")
 
 - **skills** (lista, opcional)
   - Cada item possui:
@@ -173,6 +175,8 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
 3. Agrupe experiências profissionais em `work`, formações em `education` e tecnologias/habilidades em `skills`.
 4. Sempre que possível, transforme bullets de resultados em `highlights` dentro de cada item de `work`.
 5. Mantenha o texto original do candidato, apenas removendo quebras de linha desnecessárias.
+6. **OBRIGATÓRIO extrair**: `basics.label` (título profissional), `basics.summary` (resumo), `basics.profiles` (LinkedIn, GitHub com network e url) quando presentes no currículo.
+7. **FORMATO DE DATAS**: Use sempre formato legível em português: "Jan 2025", "Dez 2025", "Abr 2026 – Em andamento", "Atual". Evite "2025-01", "Presente".
 
 ## FORMATO DE SAÍDA OBRIGATÓRIO:
 - A saída DEVE ser um único objeto JSON com exatamente os campos:
@@ -188,9 +192,14 @@ Exemplo simplificado de saída esperada:
 {
   "basics": {
     "name": "Maria Silva",
+    "label": "Desenvolvedora Backend",
     "email": "maria@example.com",
     "phone": "(11) 99999-0000",
     "summary": "Desenvolvedora backend com foco em Python e APIs REST.",
+    "profiles": [
+      {"network": "LinkedIn", "url": "https://linkedin.com/in/maria"},
+      {"network": "GitHub", "url": "https://github.com/maria"}
+    ],
     "location": {
       "city": "São Paulo",
       "region": "SP",
@@ -201,8 +210,8 @@ Exemplo simplificado de saída esperada:
     {
       "name": "TechCorp",
       "position": "Desenvolvedora Backend",
-      "startDate": "2021-01",
-      "endDate": "2024-01",
+    "startDate": "Jan 2021",
+    "endDate": "Jan 2024",
       "summary": "Desenvolvimento de APIs REST em Python.",
       "highlights": [
         "Reduziu em 30% o tempo de resposta das APIs",
@@ -215,8 +224,8 @@ Exemplo simplificado de saída esperada:
       "institution": "Universidade de São Paulo",
       "area": "Ciência da Computação",
       "studyType": "Bacharelado",
-      "startDate": "2016-01",
-      "endDate": "2020-12"
+    "startDate": "Jan 2016",
+    "endDate": "Dez 2020"
     }
   ],
   "skills": [
@@ -398,6 +407,8 @@ Você deve aplicar três tipos de melhoria, SEM criar um objeto de "sugestões" 
 3. **Foco na Vaga**: Todas as mudanças devem visar melhorar a adequação à vaga específica.
 4. **Não Invente**: Não crie experiências ou habilidades totalmente novas que não estejam suportadas pelo currículo original.
 5. **Formato JSON**: A saída deve ser APENAS o objeto JSON válido, sem texto adicional.
+6. **PRESERVAR SEMPRE**: Nunca remova `basics.summary`, `basics.label`, `basics.profiles` (LinkedIn, GitHub) ou `languages`. Esses campos devem ser mantidos ou melhorados, nunca omitidos.
+7. **FORMATO DE DATAS**: Use formato português legível: "Dez 2025", "Jan 2025", "Abr 2026 – Em andamento". Use "Atual" em vez de "Presente".
 
 ## PROCESSO RECOMENDADO:
 1. Analise a descrição da vaga e identifique requisitos-chave.
@@ -446,6 +457,7 @@ Você deve INTEGRAR essas novas informações ao currículo existente e devolver
 3. **Preservação**:
    - NÃO apague informações antigas a menos que o usuário peça explicitamente para corrigir/substituir.
    - O objetivo é SOMAR (Enriquecer).
+   - SEMPRE preserve: `basics.summary`, `basics.label`, `basics.profiles` (LinkedIn, GitHub) e `languages` ao enriquecer.
 
 4. **Inferência Mínima**:
    - Se o usuário disser "Tenho experiência com React", adicione "React" nas skills. Não invente "5 anos de experiência" se ele não disse.
