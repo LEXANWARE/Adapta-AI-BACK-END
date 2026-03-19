@@ -1,13 +1,20 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from fastapi.responses import FileResponse
-from sqlmodel import Session, select
-from pydantic import BaseModel
-from typing import List, Optional
-import os
 import json
-import uuid
+from fastapi import APIRouter, Form, HTTPException, Depends
+from sqlmodel import Session, select
+from typing import List, Optional, Dict, Any
 
-from app.services.pdf import extract_text_from_pdf
+from agents.workflow import resume_optimizer_workflow
+from app.db.session import get_session
+from app.models.user import User
+from app.models.resume import Resume
+from app.core.security import get_current_user
+from app.api.v1.endpoints.schemas.resumes import (
+    ResumeSummary,
+    ATSUserInput,
+    WorkflowOptimizeRequest,
+    WorkflowSessionResponse,
+    WorkflowContinueRequest,
+)
 
 
 def _to_dict(content) -> dict:
@@ -26,28 +33,9 @@ def _to_dict(content) -> dict:
     raise HTTPException(status_code=500, detail="Resposta da IA em formato inesperado.")
 
 
-from agents.models import vacancy_agent
-from app.db.session import get_session
-from app.models.user import User
-from app.models.resume import Resume
-from app.core.security import get_current_user
-from agents.models import resume_agent, resume_enricher_agent, resume_upgrade_agent
-from app.utils.pdf import gerar_pdf_arquivo
+# ==================== Endpoints ====================
 
 router = APIRouter()
-
-class EnrichRequest(BaseModel):
-    resume_id: int
-    additional_info: str
-
-class AdaptRequest(BaseModel):
-    resume_id: int
-    vacancy_text: str
-
-class ResumeSummary(BaseModel):
-    id: int
-    title: str
-    created_at: str
 
 @router.get("/", response_model=List[ResumeSummary])
 async def list_resumes(
@@ -72,169 +60,6 @@ async def list_resumes(
         ))
 
     return summary_list
-
-@router.post("/analyze")
-async def analyze_resume(
-    file: UploadFile = File(...),
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Apenas PDF permitido.")
-
-    text = await extract_text_from_pdf(file)
-
-    try:
-        response = resume_agent.run(text)
-        resume_data = _to_dict(response.content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na IA: {e}")
-
-    new_resume = Resume(
-        user_id=current_user.id,
-        raw_text=text,
-        parsed_data=resume_data
-    )
-    session.add(new_resume)
-    session.commit()
-    session.refresh(new_resume)
-
-    return new_resume
-
-@router.post("/enrich")
-async def enrich_resume(
-    request: EnrichRequest,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    resume = session.get(Resume, request.resume_id)
-    if not resume or resume.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Currículo não encontrado.")
-
-    prompt = f"""
-    CURRÍCULO ATUAL (JSON):
-    {resume.parsed_data}
-
-    INFORMAÇÕES ADICIONAIS DO USUÁRIO:
-    {request.additional_info}
-    """
-
-    try:
-        response = resume_enricher_agent.run(prompt)
-        new_data = _to_dict(response.content)
-
-        resume.parsed_data = new_data
-        session.add(resume)
-        session.commit()
-        session.refresh(resume)
-
-        return resume
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao enriquecer: {e}")
-
-@router.post("/adapt")
-async def adapt_resume(
-    request: AdaptRequest,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    resume = session.get(Resume, request.resume_id)
-    if not resume or resume.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Currículo não encontrado.")
-
-    prompt = f"""
-    A VAGA É ESTA:
-    {request.vacancy_text}
-
-    O CURRÍCULO ORIGINAL É ESTE:
-    {resume.parsed_data}
-
-    Reescreva o currículo mantendo a verdade, mas destacando pontos que conectem com a vaga.
-    """
-
-    try:
-        response = resume_upgrade_agent.run(prompt)
-        adapted_data = _to_dict(response.content)
-
-        adapted_resume = Resume(
-            user_id=current_user.id,
-            raw_text=resume.raw_text,
-            parsed_data=adapted_data
-        )
-        session.add(adapted_resume)
-        session.commit()
-        session.refresh(adapted_resume)
-
-        return adapted_resume
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao adaptar: {e}")
-
-@router.post("/adapt-full")
-async def adapt_resume_full(
-    file: UploadFile = File(...),
-    vacancy_text: str = Form(...),
-    additional_info: str = Form(""),
-    current_user: User = Depends(get_current_user)
-):
-    """Recebe currículo (PDF), vaga e informações adicionais. Retorna JSON adaptado sem persistir."""
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Apenas PDF permitido.")
-
-    curriculum_text = await extract_text_from_pdf(file)
-    if not curriculum_text.strip():
-        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do PDF.")
-
-    try:
-        vacancy_response = vacancy_agent.run(vacancy_text)
-        resume_response = resume_agent.run(curriculum_text)
-        vacancy_analysis = str(_to_dict(vacancy_response.content)) if vacancy_response.content else ""
-        resume_analysis = str(_to_dict(resume_response.content)) if resume_response.content else ""
-
-        enriched_resume = ""
-        if additional_info and additional_info.strip():
-            resume_dict = _to_dict(resume_response.content)
-            enrich_prompt = f"""
-CURRÍCULO ATUAL (JSON):
-{json.dumps(resume_dict, ensure_ascii=False, indent=2)}
-
-INFORMAÇÕES ADICIONAIS DO USUÁRIO:
-{additional_info}
-"""
-            enrich_response = resume_enricher_agent.run(enrich_prompt)
-            enriched_resume = str(_to_dict(enrich_response.content)) if enrich_response.content else ""
-        else:
-            enriched_resume = "(Nenhuma informação adicional fornecida)"
-
-        combined_prompt = f"""
-## CURRÍCULO ORIGINAL:
-{curriculum_text}
-
-## ANÁLISE DA VAGA (Requisitos Identificados):
-{vacancy_analysis}
-
-## ANÁLISE DO CURRÍCULO ATUAL:
-{resume_analysis}
-
-## CURRÍCULO ENRIQUECIDO COM INFORMAÇÕES ADICIONAIS:
-{enriched_resume}
-
----
-TAREFA: Com base nas análises acima, crie um currículo otimizado no formato JSON Resume.
-- Destaque as qualificações alinhadas aos requisitos da vaga
-- Use palavras-chave identificadas na análise da vaga
-- Foque em resultados e conquistas mensuráveis
-- Mantenha a estrutura completa do JSON Resume (incluindo basics, work, education, skills, profiles, etc.)
-- Retorne APENAS o JSON válido
-"""
-        upgrade_response = resume_upgrade_agent.run(combined_prompt)
-        adapted_data = _to_dict(upgrade_response.content)
-
-        return adapted_data
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na adaptação: {str(e)}")
 
 @router.get("/{resume_id}")
 async def get_resume(
@@ -263,49 +88,135 @@ async def delete_resume(
 
     return {"message": "Currículo deletado com sucesso!"}
 
-@router.get("/preview/{resume_id}")
-async def preview_resume_pdf(
-    resume_id: int,
+# ==================== Endpoints do Workflow com HITL ====================
+
+@router.post("/optimize-with-workflow", response_model=WorkflowSessionResponse)
+async def optimize_with_workflow(
+    request: WorkflowOptimizeRequest,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    resume = session.get(Resume, resume_id)
+    """
+    Executa o workflow completo de otimização com HITL.
+    
+    Fluxo:
+    1. Executa workflow até o step ATS Analysis
+    2. Se pausado: retorna status='paused' com análise ATS
+    3. Usuário envia user_input via /workflow/continue
+    4. Workflow continua e gera currículo otimizado
+    
+    Respostas possíveis:
+    - status='paused': Requer user_input para continuar
+    - status='completed': Workflow finalizado com sucesso
+    """
+    resume = session.get(Resume, request.resume_id)
     if not resume or resume.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Currículo não encontrado.")
 
-    temp_filename = f"preview_{uuid.uuid4()}.pdf"
-    file_path = f"/tmp/{temp_filename}" if os.name != 'nt' else temp_filename
-
     try:
-        gerar_pdf_arquivo(resume.parsed_data, file_path)
+        additional_data = {
+            "vaga": request.vacancy_text,
+            "curriculo": json.dumps(resume.parsed_data, ensure_ascii=False),
+            "info_adicional": request.additional_info or ""
+        }
 
-        return FileResponse(
-            path=file_path, 
-            media_type='application/pdf',
-            headers={"Content-Disposition": "inline; filename=preview.pdf"}
+        run_output = resume_optimizer_workflow.run(
+            input="Otimizar currículo para vaga",
+            additional_data=additional_data
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar Preview: {e}")
 
-@router.get("/download/{resume_id}")
-async def download_resume_pdf(
-    resume_id: int,
-    session: Session = Depends(get_session),
+        if run_output.is_paused:
+            ats_analysis = None
+            for step_content in run_output.step_outputs.values():
+                if step_content and hasattr(step_content, 'content'):
+                    try:
+                        ats_analysis = _to_dict(step_content.content)
+                        break
+                    except:
+                        pass
+
+            return WorkflowSessionResponse(
+                session_id=run_output.session_id,
+                run_id=run_output.run_id,
+                status="paused",
+                ats_analysis=ats_analysis,
+                user_input_required=True,
+                message="Workflow pausado! Forneça input via /workflow/continue para continuar."
+            )
+
+        return WorkflowSessionResponse(
+            session_id=run_output.session_id,
+            run_id=run_output.run_id,
+            status="completed",
+            user_input_required=False,
+            message="Currículo otimizado com sucesso!"
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no workflow: {str(e)}")
+
+
+@router.post("/workflow/continue")
+async def continue_workflow(
+    request: WorkflowContinueRequest,
     current_user: User = Depends(get_current_user)
 ):
-    resume = session.get(Resume, resume_id)
-    if not resume or resume.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Currículo não encontrado.")
-
-    temp_filename = f"resume_{uuid.uuid4()}.pdf"
-    file_path = f"/tmp/{temp_filename}" if os.name != 'nt' else temp_filename
-
+    """
+    Continua um workflow pausado fornecendo user_input (HITL).
+    
+    Fluxo:
+    1. Recupera sessão do workflow pelo session_id
+    2. Verifica se está pausado
+    3. Executa workflow novamente com user_input
+    4. Retorna resultado (completo ou pausado)
+    """
     try:
-        gerar_pdf_arquivo(resume.parsed_data, file_path)
-        return FileResponse(
-            path=file_path, 
-            filename="Curriculo_Adaptado.pdf", 
-            media_type='application/pdf'
+        user_input_data = request.user_input.model_dump()
+        
+        try:
+            workflow_session = resume_optimizer_workflow.get_session(request.session_id)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Sessão não encontrada: {str(e)}")
+
+        if not workflow_session:
+            raise HTTPException(status_code=404, detail="Sessão não encontrada.")
+
+        try:
+            run_output = workflow_session.get_run(request.run_id)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Run não encontrado: {str(e)}")
+
+        if not run_output:
+            raise HTTPException(status_code=404, detail="Run não encontrado.")
+            
+        if not run_output.is_paused:
+            raise HTTPException(status_code=400, detail="Workflow não está pausado.")
+
+        continued_output = resume_optimizer_workflow.run(
+            input="Continuar otimização com feedback do usuário",
+            additional_data={"user_input": user_input_data},
+            session=workflow_session
         )
+
+        if continued_output.is_paused:
+            return {
+                "session_id": request.session_id,
+                "run_id": continued_output.run_id,
+                "status": "paused",
+                "message": "Workflow ainda possui steps pendentes."
+            }
+
+        optimized_resume = continued_output.get_step_content("Generate Optimized Resume")
+
+        return {
+            "session_id": request.session_id,
+            "run_id": continued_output.run_id,
+            "status": "completed",
+            "optimized_resume": optimized_resume.model_dump() if optimized_resume else None,
+            "message": "Workflow completado com sucesso!"
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao continuar workflow: {str(e)}")

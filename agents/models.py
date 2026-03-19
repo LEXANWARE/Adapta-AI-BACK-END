@@ -7,9 +7,11 @@ from agents.instructions import (
     RESUME_AGENT_INSTRUCTIONS,
     UPGRADE_RESUME_AGENT_INSTRUCTIONS,
     ENRICH_RESUME_INSTRUCTIONS,
+    ATS_AGENT_INSTRUCTIONS,
 )
 from agents.schemas.vacancy import VacancyKeyThemes
 from agents.schemas.resume import ResumeScheme
+from agents.schemas.ats import AtsAnalysis
 
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=Path(ENV_PATH))
@@ -49,5 +51,14 @@ resume_enricher_agent = Agent(
     model=model_instance,
     instructions=ENRICH_RESUME_INSTRUCTIONS,
     output_schema=ResumeScheme,
+    debug_mode=True
+)
+
+ats_agent = Agent(
+    name="ats_agent",
+    description="Agente que analisa compatibilidade de currículo com vaga para ATS",
+    model=model_instance,
+    instructions=ATS_AGENT_INSTRUCTIONS,
+    output_schema=AtsAnalysis,
     debug_mode=True
 )

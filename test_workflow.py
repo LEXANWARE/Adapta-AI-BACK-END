@@ -1,7 +1,6 @@
 from agents.workflow import resume_optimizer_workflow
-from agents.utils.pdf import imprimir_json, salvar_json_final, gerar_pdf
 
-curriculo_texto_pdf = """LUCAS MELO DE SOUZA
+curriculo_texto = """LUCAS MELO DE SOUZA
 Telefone: +55 (85) 99968-6875 | E-mail: lucasouza280604@gmail.com
 
 Github: lucas-twygz | LinkedIn: Lucas Melo de Souza
@@ -66,7 +65,7 @@ Banco de Dados: MySQL, SQLite
 
 Mobile: Kotlin, Android Nativo
 
-Documentação: LaTeX, Markdown
+Documentação: Markdown
 
 Infraestrutura/DevOps: Git/Github, Docker
 
@@ -141,7 +140,7 @@ Licença Maternidade e Paternidade Estendida – empresa Cidadã."""
 resume_optimizer_workflow.run(
     input="Otimize meu currículo para esta vaga",
     additional_data={
-        'curriculo': curriculo_texto_pdf,
+        'curriculo': curriculo_texto,
         'vaga': descricao_vaga,
         'info_adicional': input_usuario_enrich
     }

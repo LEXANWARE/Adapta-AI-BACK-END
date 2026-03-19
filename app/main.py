@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 from app.db.session import engine
-from app.api.v1.endpoints import auth, resumes 
+from app.api.v1.endpoints import auth, resumes
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
-app.include_router(resumes.router, prefix="/api/v1/resumes", tags=["currículos"]) 
+app.include_router(resumes.router, prefix="/api/v1/resumes", tags=["currículos"])
 
 @app.on_event("startup")
 def on_startup():

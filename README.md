@@ -14,12 +14,14 @@ O objetivo do AdaptaAi é ajudar candidatos a:
 
 ## 🚀 Funcionalidades Principais
 
-* Upload e análise de currículos (PDF, DOCX)
+* Upload e análise de currículos
 * Análise automática da descrição da vaga
 * Reescrita inteligente do currículo com foco na vaga alvo
 * Sugestões de melhorias em linguagem, palavras-chave e estrutura
 * Geração de versões múltiplas de um mesmo currículo
 * Histórico de currículos adaptados por vaga
+* Análise de compatibilidade ATS com score e recomendações
+* **Human-in-the-Loop (HITL)**: Usuário revisa análise antes de prosseguir
 
 ## 🧠 Inteligência Artificial
 
@@ -29,6 +31,49 @@ O AdaptaAi utiliza agentes inteligentes baseados em modelos de linguagem para:
 * Identificar lacunas entre o currículo e a descrição da vaga
 * Reescrever trechos mantendo coerência, clareza e veracidade
 * Otimizar o conteúdo para leitura humana e sistemas ATS
+
+## 📋 Pré-requisitos
+
+### Python
+- Python 3.10 ou superior
+- pip (gerenciador de pacotes Python)
+
+## 🚀 Instalação e Setup
+
+### 1. Clonar repositório
+```bash
+git clone <url-do-repositorio>
+cd AdaptaAi-BACKEND
+```
+
+### 2. Criar ambiente virtual
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# Linux/macOS
+source venv/bin/activate
+```
+
+### 3. Instalar dependências
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configurar variáveis de ambiente
+Crie um arquivo `.env` na raiz do projeto:
+```env
+GOOGLE_API_KEY=sua_chave_aqui
+LANGSMITH_API_KEY=sua_chave_aqui
+LANGSMITH_PROJECT=adaptaai
+```
+
+### 5. Rodar o servidor
+```bash
+uvicorn app.main:app --reload
+```
+
+Acesse: `http://localhost:8000`
 
 ## 🛠️ Tecnologias e Frameworks Sugeridos
 
