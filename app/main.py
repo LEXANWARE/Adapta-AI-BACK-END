@@ -1,13 +1,24 @@
+from sqlmodel import SQLModel
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel
 from app.db.session import engine
 from app.api.v1.endpoints import auth, resumes
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
-app = FastAPI(title="AdaptaAi API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+app = FastAPI(
+    title="AdaptaAi API",
+    description="API para otimização de currículos com análise ATS e Human-in-the-Loop (HITL)",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 origins = [
     "http://localhost:5173",
@@ -23,11 +34,11 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
-app.include_router(resumes.router, prefix="/api/v1/resumes", tags=["currículos"])
-
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
+app.include_router(
+    resumes.router,
+    prefix="/api/v1/resumes",
+    tags=["currículos", "workflow HITL"]
+)
 
 @app.get("/")
 def read_root():

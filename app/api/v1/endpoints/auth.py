@@ -1,22 +1,48 @@
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm 
 
 from sqlmodel import Session, select
-from pydantic import BaseModel, EmailStr
-from app.db.session import get_session
-from app.core.security import create_access_token, verify_password, get_password_hash
+from pydantic import BaseModel, EmailStr, Field
 from app.models.user import User
+from app.db.session import get_session
+from app.core.security import create_access_token, verify_password, get_password_hash, get_current_user
 
 router = APIRouter()
 
 class RegisterRequest(BaseModel):
-    username: str
+    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6, max_length=72)
+
+
+class UserResponse(BaseModel):
+    """Schema para resposta de dados do usuário (sem senha)"""
+    id: int
+    username: str
+    email: str
+
+
+@router.get("/users/me", response_model=UserResponse)
+def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Retorna informações do usuário autenticado.
+    
+    Use este endpoint para obter dados completos do usuário
+    após o login, já que o token JWT contém apenas o user_id.
+    """
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email
+    )
+
 
 @router.post("/login")
 def login_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), 
+    form_data: OAuth2PasswordRequestForm = Depends(),
 
     session: Session = Depends(get_session)
 ):
@@ -34,12 +60,12 @@ def login_access_token(
     access_token = create_access_token(subject=user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 @router.post("/register")
 def register_user(
-    register_data: RegisterRequest, 
+    register_data: RegisterRequest,
     session: Session = Depends(get_session)
 ):
-
     if session.exec(select(User).where(User.username == register_data.username)).first():
         raise HTTPException(status_code=400, detail="Este usuário já existe.")
 
@@ -47,8 +73,8 @@ def register_user(
         raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado.")
 
     user = User(
-        username=register_data.username, 
-        email=register_data.email, 
+        username=register_data.username,
+        email=register_data.email,
         hashed_password=get_password_hash(register_data.password)
     )
     session.add(user)

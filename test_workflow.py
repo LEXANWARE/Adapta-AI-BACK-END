@@ -1,4 +1,13 @@
+import json
+import traceback
 from agents.workflow import resume_optimizer_workflow
+from agents.utils.hitl_utils import (
+    extract_ats_analysis,
+    extract_optimized_resume,
+    handle_hitl_requirement,
+    get_workflow_status,
+    extract_workflow_result,
+)
 
 curriculo_texto = """LUCAS MELO DE SOUZA
 Telefone: +55 (85) 99968-6875 | E-mail: lucasouza280604@gmail.com
@@ -121,27 +130,127 @@ Experiência com Front-end (React).
 
 Benefícios
 
-Participação nos Lucros e Resultados (PLR); 
-Remuneração variável por performance (bônus anual); 
-Auxílio Alimentação e Refeição; 
-Plano Médico; 
-Plano Odontológico; 
-Auxílio Creche/Babá; 
-Vale Transporte; 
-WellHub; 
-TotalPass; 
-Programa de Apoio Pessoal (EAP); 
-Planos por adesão como Previdência Privada e Seguro de Vida; 
-Desconto em Farmácia; 
-Programa de Nutrição; 
-Programa de Gestantes; 
+Participação nos Lucros e Resultados (PLR);
+Remuneração variável por performance (bônus anual);
+Auxílio Alimentação e Refeição;
+Plano Médico;
+Plano Odontológico;
+Auxílio Creche/Babá;
+Vale Transporte;
+WellHub;
+TotalPass;
+Programa de Apoio Pessoal (EAP);
+Planos por adesão como Previdência Privada e Seguro de Vida;
+Desconto em Farmácia;
+Programa de Nutrição;
+Programa de Gestantes;
 Licença Maternidade e Paternidade Estendida – empresa Cidadã."""
 
-resume_optimizer_workflow.run(
-    input="Otimize meu currículo para esta vaga",
-    additional_data={
-        'curriculo': curriculo_texto,
-        'vaga': descricao_vaga,
-        'info_adicional': input_usuario_enrich
-    }
-)
+def handle_hitl(run_response):
+    """Função para lidar com HITL no workflow"""
+    if hasattr(run_response, 'steps_requiring_user_input') and run_response.steps_requiring_user_input:
+        print("\n" + "="*80)
+        print("🔴 WORKFLOW PAUSADO - Aguardando input do usuário")
+        print("="*80)
+
+        for requirement in run_response.steps_requiring_user_input:
+            print(f"\n📌 Step: {requirement.step_name}")
+            print(f"📝 Mensagem: {requirement.user_input_message}")
+            print("-" * 40)
+
+            # Coleta os inputs conforme schema
+            user_data = {}
+            for field in requirement.user_input_schema or []:
+                field_name = field.name if hasattr(field, 'name') else field.get('name')
+                field_type = field.field_type if hasattr(field, 'field_type') else field.get('field_type')
+                description = field.description if hasattr(field, 'description') else field.get('description')
+                
+                if field_type == "bool":
+                    prompt = f"{description} (s/n): "
+                    value = input(prompt).strip().lower()
+                    user_data[field_name] = value in ['s', 'sim', 'yes', 'y', 'true', '1']
+                else:
+                    prompt = f"{description}: "
+                    user_data[field_name] = input(prompt).strip()
+
+            # ✅ Resolve o requirement usando função utilitária
+            if handle_hitl_requirement(requirement, user_data):
+                print(f"\n✅ Input registrado: {user_data}")
+            else:
+                print(f"\n❌ Erro ao registrar input")
+                return False
+
+        print("\n⏩ Retomando execução do workflow...")
+        return True
+    return False
+
+def extract_final_result(run_response):
+    """Extrai o resultado final do workflow usando função utilitária."""
+    return extract_workflow_result(run_response)
+
+if __name__ == "__main__":
+    print("="*80)
+    print("🚀 INICIANDO WORKFLOW DE OTIMIZAÇÃO DE CURRÍCULO")
+    print("="*80)
+
+    try:
+        # Executa o workflow
+        run_response = resume_optimizer_workflow.run(
+            input="Otimize meu currículo para esta vaga",
+            additional_data={
+                'curriculo': curriculo_texto,
+                'vaga': descricao_vaga,
+                'info_adicional': input_usuario_enrich
+            }
+        )
+
+        # Loop para lidar com múltiplas pausas (se houver)
+        while True:
+            status = get_workflow_status(run_response)
+            print(f"\n📊 Status do workflow: {status}")
+            
+            if status != "paused":
+                break
+                
+            # Processa HITL
+            if handle_hitl(run_response):
+                # Continua execução após HITL
+                run_response = resume_optimizer_workflow.continue_run(
+                    run_response=run_response,
+                    step_requirements=run_response.step_requirements
+                )
+            else:
+                break
+
+        # Exibe resultado final
+        print("\n" + "="*80)
+        print("✅ WORKFLOW CONCLUÍDO")
+        print("="*80)
+
+        final_content = extract_final_result(run_response)
+
+        if final_content:
+            print("\n📄 RESULTADO FINAL:")
+            print("-" * 40)
+            content_str = str(final_content)
+            # Se for muito grande, mostra os primeiros 2000 caracteres
+            if len(content_str) > 2000:
+                print(content_str[:2000])
+                print(f"\n... (conteúdo truncado, total de {len(content_str)} caracteres)")
+            else:
+                print(content_str)
+
+            # Tenta salvar o resultado em arquivo
+            try:
+                output_file = "currículo_otimizado.json"
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    f.write(content_str)
+                print(f"\n💾 Resultado salvo em: {output_file}")
+            except Exception as e:
+                print(f"\n⚠️  Não foi possível salvar arquivo: {e}")
+        else:
+            print("\n⚠️  Nenhum conteúdo retornado pelo workflow")
+
+    except Exception as e:
+        print(f"\n❌ ERRO: {e}")
+        traceback.print_exc()

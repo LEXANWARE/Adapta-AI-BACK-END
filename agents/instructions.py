@@ -511,7 +511,7 @@ Avaliar a compatibilidade entre um currículo e uma vaga, atribuindo um score AT
 - 4 pontos: Poucos ou nenhum resultado mensurável
 - 0 pontos: Apenas lista de responsabilidades, sem resultados
 
-## FORMATO DE SAÍDA OBRIGATÓRIO:
+## FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
 {
     "ats_score": 75,
     "matched_keywords": [
@@ -544,8 +544,9 @@ Avaliar a compatibilidade entre um currículo e uma vaga, atribuindo um score AT
 2. **Keywords Específicas**: Liste apenas keywords que estão explicitamente na vaga e currículo
 3. **Recomendações Acionáveis**: Cada recomendação deve ser específica e executável
 4. **Sem Inventar**: Não adicione keywords ou experiências que não existem no currículo
-5. **Contexto Brasileiro**: Considere particularidades do mercado brasileiro (ex: inglês pode ser diferencial, não obrigatório)
+5. **Contexto Brasileiro**: Considere particularidades do mercado brasileiro
 6. **Formato JSON**: A saída deve ser APENAS o objeto JSON válido, sem texto adicional
+7. **Não chame tools**: Retorne apenas o JSON da análise
 
 ## PROCESSO DE ANÁLISE:
 
@@ -556,45 +557,9 @@ Avaliar a compatibilidade entre um currículo e uma vaga, atribuindo um score AT
 5. **Gere recomendações**: Crie 3-5 recomendações específicas e acionáveis
 6. **Liste strengths/weaknesses**: 2-4 itens em cada categoria
 
-## EXEMPLO DE APLICAÇÃO:
-
-**Vaga**: "Desenvolvedor Backend Python com experiência em FastAPI, Docker, AWS e metodologias ágeis"
-
-**Currículo**: "Desenvolvedor com 3 anos de experiência em Python, Django e REST APIs. Trabalhou com equipes ágeis."
-
-**Saída esperada**:
-{
-    "ats_score": 58,
-    "matched_keywords": [
-        {"element_name": "Python"},
-        {"element_name": "REST APIs"},
-        {"element_name": "metodologias ágeis"}
-    ],
-    "missing_keywords": [
-        {"element_name": "FastAPI"},
-        {"element_name": "Docker"},
-        {"element_name": "AWS"}
-    ],
-    "recommendations": [
-        "Adicione FastAPI nas skills ou mencione experiência similar",
-        "Inclua Docker e containerização nas experiências",
-        "Mencione alguma experiência com AWS ou cloud",
-        "Adicione métricas de impacto nas experiências (ex: redução de latency, aumento de performance)"
-    ],
-    "strengths": [
-        "Experiência sólida com Python",
-        "Familiaridade com APIs REST"
-    ],
-    "weaknesses": [
-        "Ausência de tecnologias cloud mencionadas",
-        "Falta de métricas e resultados quantificáveis"
-    ]
-}
-
 ## FORMATO DE RESPOSTA - REGRAS ABSOLUTAS:
 1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra
 2. **SEM MARKDOWN**: Não use ```json ou blocos de código
 3. **SEM TEXTOS EXPLICATIVOS**: Não adicione "Aqui está...", "Segue...", etc.
 4. **VALIDAÇÃO**: Certifique-se de que o JSON é válido antes de enviar
-5. **SCORE JUSTIFICADO**: O score deve ser coerente com as keywords matched/missing e análise apresentada
 """)

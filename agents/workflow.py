@@ -1,11 +1,8 @@
-import os
-from opentelemetry.sdk.trace import TracerProvider
-from agno.workflow.types import StepInput, StepOutput
-from agno.workflow import Condition, Parallel, Step, Workflow
+import json
+from textwrap import dedent
 from agno.db.sqlite import SqliteDb
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from openinference.instrumentation.agno import AgnoInstrumentor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from agno.workflow import Condition, Parallel, Step, Workflow
+from agno.workflow.types import StepInput, StepOutput, OnReject, OnError
 from agents.models import (
     vacancy_agent,
     resume_agent,
@@ -13,20 +10,6 @@ from agents.models import (
     resume_enricher_agent,
     ats_agent,
 )
-
-endpoint = "https://api.smith.langchain.com/otel/v1/traces"
-
-headers = {
-    "x-api-key": os.getenv("LANGSMITH_API_KEY"),
-    "Langsmith-Project": os.getenv("LANGSMITH_PROJECT"),
-}
-
-tracer_provider = TracerProvider()
-tracer_provider.add_span_processor(
-    SimpleSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
-)
-
-AgnoInstrumentor().instrument(tracer_provider=tracer_provider)
 
 def has_additional_info(step_input: StepInput) -> bool:
     """Retorna True se houver informações adicionais do candidato"""
@@ -55,23 +38,23 @@ def prepare_enrich_input(step_input: StepInput) -> StepOutput:
     curriculo = data.get("curriculo", "")
     info_adicional = data.get("info_adicional", "")
 
-    content = f"""
-### CURRICULO_ATUAL
-O bloco abaixo contém o currículo atual do candidato. Ele pode estar em TEXTO LIVRE ou já em formato JSON Resume.
-Use esse currículo como base estrutural.
+    content = dedent(f"""
+    ### CURRICULO_ATUAL
+    O bloco abaixo contém o currículo atual do candidato. Ele pode estar em TEXTO LIVRE ou já em formato JSON Resume.
+    Use esse currículo como base estrutural.
 
-{curriculo}
+    {curriculo}
 
-### INFORMACOES_ADICIONAIS
-O bloco abaixo contém informações adicionais enviadas pelo candidato. Use-as para enriquecer o currículo:
+    ### INFORMACOES_ADICIONAIS
+    O bloco abaixo contém informações adicionais enviadas pelo candidato. Use-as para enriquecer o currículo:
 
-{info_adicional}
+    {info_adicional}
 
-### TAREFA
-Atualize o currículo para incluir as informações adicionais, mantendo um único currículo final em formato JSON Resume.
-Respeite toda a estrutura do JSON Resume (basics, work, education, skills, projects, languages, etc.).
-Retorne APENAS o JSON do currículo atualizado.
-"""
+    ### TAREFA
+    Atualize o currículo para incluir as informações adicionais, mantendo um único currículo final em formato JSON Resume.
+    Respeite toda a estrutura do JSON Resume (basics, work, education, skills, projects, languages, etc.).
+    Retorne APENAS o JSON do currículo atualizado.
+    """)
     return StepOutput(content=content)
 
 
@@ -84,55 +67,38 @@ def combine_for_upgrade(step_input: StepInput) -> StepOutput:
     enriched_resume = step_input.get_step_content("Enrich Resume") or ""
     ats_analysis_output = step_input.get_step_content("ATS Analysis") or ""
 
-    # Extrair user_proceeds do objeto AtsAnalysis (HITL)
-    user_proceeds = True  # Valor padrão se não conseguir extrair
-    if ats_analysis_output and hasattr(ats_analysis_output, 'content'):
-        try:
-            ats_content = ats_analysis_output.content
-            if hasattr(ats_content, 'user_proceeds') and ats_content.user_proceeds is not None:
-                user_proceeds = ats_content.user_proceeds
-        except:
-            pass
-
     if not enriched_resume:
         enriched_resume = "(Nenhuma informação adicional fornecida)"
 
-    # Se usuário não quis prosseguir, retornar mensagem
-    if not user_proceeds:
-        return StepOutput(
-            content="Usuário optou por não prosseguir com a otimização.",
-            success=False
-        )
+    combined = dedent(f"""
+    ## CURRÍCULO ORIGINAL:
+    {data.get('curriculo', '')}
 
-    combined = f"""
-## CURRÍCULO ORIGINAL:
-{data.get('curriculo', '')}
+    ## ANÁLISE DA VAGA (Requisitos Identificados):
+    {vacancy_analysis}
 
-## ANÁLISE DA VAGA (Requisitos Identificados):
-{vacancy_analysis}
+    ## ANÁLISE DO CURRÍCULO ATUAL:
+    {resume_analysis}
 
-## ANÁLISE DO CURRÍCULO ATUAL:
-{resume_analysis}
+    ## CURRÍCULO ENRIQUECIDO COM INFORMAÇÕES ADICIONAIS:
+    {enriched_resume}
 
-## CURRÍCULO ENRIQUECIDO COM INFORMAÇÕES ADICIONAIS:
-{enriched_resume}
+    ## ANÁLISE ATS (Score e Recomendações):
+    {ats_analysis_output}
 
-## ANÁLISE ATS (Score e Recomendações):
-{ats_analysis_output}
+    ## DECISÃO DO USUÁRIO (HITL):
+    Prosseguir com otimização
 
-## DECISÃO DO USUÁRIO (HITL):
-{'Prosseguir com otimização' if user_proceeds else 'Não prosseguir'}
-
----
-TAREFA: Com base nas análises acima, crie um currículo otimizado no formato JSON Resume.
-- Destaque as qualificações alinhadas aos requisitos da vaga
-- Use palavras-chave identificadas na análise da vaga
-- Foque em resultados e conquistas mensuráveis
-- Considere as recomendações da análise ATS para melhorar o score
-- Incorpore o feedback adicional do usuário quando aplicável
-- Mantenha a estrutura completa do JSON Resume (incluindo campos como basics.profiles, volunteer, projects, etc.)
-- Retorne APENAS o JSON válido
-"""
+    ---
+    TAREFA: Com base nas análises acima, crie um currículo otimizado no formato JSON Resume.
+    - Destaque as qualificações alinhadas aos requisitos da vaga
+    - Use palavras-chave identificadas na análise da vaga
+    - Foque em resultados e conquistas mensuráveis
+    - Considere as recomendações da análise ATS para melhorar o score
+    - Incorpore o feedback adicional do usuário quando aplicável
+    - Mantenha a estrutura completa do JSON Resume (incluindo campos como basics.profiles, volunteer, projects, etc.)
+    - Retorne APENAS o JSON válido
+    """)
     return StepOutput(content=combined)
 
 
@@ -144,50 +110,58 @@ def prepare_ats_input(step_input: StepInput) -> StepOutput:
     resume_analysis = step_input.get_step_content("Analyze Resume") or ""
     resume_text = data.get('curriculo', '')
 
-    content = f"""
-## DESCRIÇÃO DA VAGA:
-{data.get('vaga', '')}
+    content = dedent(f"""
+    ## DESCRIÇÃO DA VAGA:
+    {data.get('vaga', '')}
 
-## ANÁLISE DA VAGA (Requisitos Identificados):
-{vacancy_analysis}
+    ## ANÁLISE DA VAGA (Requisitos Identificados):
+    {vacancy_analysis}
 
-## CURRÍCULO (JSON):
-{resume_analysis}
+    ## CURRÍCULO (JSON):
+    {resume_analysis}
 
-## CURRÍCULO ORIGINAL (TEXTO):
-{resume_text}
+    ## CURRÍCULO ORIGINAL (TEXTO):
+    {resume_text}
 
----
-TAREFA: Analise a compatibilidade ATS entre o currículo e a vaga.
-Retorne o JSON com: ats_score (0-100), matched_keywords, missing_keywords, recommendations, strengths, weaknesses.
-"""
+    ---
+    TAREFA: Analise a compatibilidade ATS entre o currículo e a vaga.
+    Retorne APENAS a análise no formato JSON especificado.
+    """)
     return StepOutput(content=content)
 
 
-def update_ats_with_user_decision(step_input: StepInput) -> StepOutput:
-    """
-    Atualiza o objeto AtsAnalysis com a decisão do usuário (HITL).
-    Este step é executado após o usuário fornecer o input.
-    """
-    ats_analysis_output = step_input.get_step_content("ATS Analysis")
-    data = step_input.additional_data or {}
-    user_input = data.get("user_input", {})
+def extract_ats_score(step_input: StepInput) -> StepOutput:
+    """Extrai o score ATS do resultado para usar na mensagem de confirmação"""
+    ats_result = step_input.get_step_content("ATS Analysis") or ""
+
+    try:
+        ats_data = json.loads(ats_result)
+        score = ats_data.get("ats_score", "N/A")
+        message = f"Score ATS: {score}/100\n\nRecomendações principais:\n"
+        for rec in ats_data.get("recommendations", [])[:3]:
+            message += f"- {rec}\n"
+        return StepOutput(content=message)
+    except:
+        return StepOutput(content="Análise ATS concluída.")
+
+
+def process_user_confirmation(step_input: StepInput) -> StepOutput:
+    """Processa a confirmação do usuário (HITL) e armazena a decisão"""
+    
+    user_input = step_input.user_input or {}
     user_proceeds = user_input.get("user_proceeds", True)
-
-    if ats_analysis_output and hasattr(ats_analysis_output, 'content'):
-        ats_content = ats_analysis_output.content
-        if hasattr(ats_content, 'user_proceeds'):
-            ats_content.user_proceeds = user_proceeds
-            return StepOutput(content=ats_content)
-
-    # Se não conseguir atualizar, retorna o output original
-    return ats_analysis_output if ats_analysis_output else StepOutput(content=None)
+    feedback = user_input.get("feedback", "")
+    
+    return StepOutput(
+        content=f"Usuário decidiu: {'Prosseguir' if user_proceeds else 'Não prosseguir'}",
+        additional_data={"user_proceeds": user_proceeds, "user_feedback": feedback}
+    )
 
 
 resume_optimizer_workflow = Workflow(
     name="Resume Optimizer",
     description="Otimiza currículos para vagas específicas com análise ATS e HITL",
-    db=SqliteDb(db_file="workflow.db"),  # Persistência para HITL
+    db=SqliteDb(db_file="workflow.db"),
     steps=[
         Parallel(
             Step(name="Prepare Vacancy", executor=prepare_vacancy_input),
@@ -199,6 +173,7 @@ resume_optimizer_workflow = Workflow(
             ),
             name="Prepare Phase"
         ),
+        
         Parallel(
             Step(name="Analyze Vacancy", agent=vacancy_agent),
             Step(name="Analyze Resume", agent=resume_agent),
@@ -209,23 +184,63 @@ resume_optimizer_workflow = Workflow(
             ),
             name="Analysis Phase"
         ),
-        Step(name="Prepare ATS Input", executor=prepare_ats_input),
+        
+        Step(
+            name="Prepare ATS Input", 
+            executor=prepare_ats_input
+        ),
         Step(
             name="ATS Analysis",
             agent=ats_agent,
+        ),
+        Step(
+            name="Extract ATS Score",
+            executor=extract_ats_score,
+        ),
+        Step(
+            name="User Confirmation",
+            executor=process_user_confirmation,
             requires_user_input=True,
-            user_input_message="Analise ATS concluída! Revise o score e recomendações abaixo. Deseja prosseguir com a otimização?",
+            on_reject=OnReject.cancel,
+            on_error=OnError.pause,
+            user_input_message="""📊 Análise ATS concluída!
+
+            {previous_output}
+
+            Deseja prosseguir com a otimização do currículo baseado nas recomendações acima?
+
+            Isso irá gerar uma versão otimizada do seu currículo destacando:
+            - Palavras-chave alinhadas com a vaga
+            - Experiências mais relevantes
+            - Melhorias sugeridas pela análise ATS
+
+            Escolha uma opção:
+            1. ✅ Sim, prosseguir com otimização
+            2. ❌ Não, manter currículo original
+
+            Por favor, confirme sua decisão:""",
             user_input_schema=[
                 {
                     "name": "user_proceeds",
                     "field_type": "bool",
-                    "description": "Deseja prosseguir com a otimização do currículo?",
+                    "description": "Prosseguir com otimização?",
                     "required": True
-                }
+                },
+                {
+                    "name": "feedback",
+                    "field_type": "string",
+                    "description": "Feedback adicional (opcional)",
+                    "required": False
+                },
             ],
         ),
-        Step(name="Update ATS with User Decision", executor=update_ats_with_user_decision),
-        Step(name="Combine Analyses", executor=combine_for_upgrade),
-        Step(name="Generate Optimized Resume", agent=resume_upgrade_agent),
+        Step(
+            name="Combine Analyses", 
+            executor=combine_for_upgrade
+        ),
+        Step(
+            name="Generate Optimized Resume", 
+            agent=resume_upgrade_agent
+        ),
     ],
 )

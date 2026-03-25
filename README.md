@@ -1,112 +1,175 @@
-# AdaptaAi
+# AdaptaAi - Backend
 
-**AdaptaAi** é um serviço web que utiliza agentes inteligentes para adaptar currículos de forma personalizada para vagas de emprego específicas, aumentando a compatibilidade com requisitos técnicos, comportamentais e sistemas de triagem automática (ATS).
+Backend da aplicação AdaptaAi, uma API para otimização de currículos com análise ATS e Human-in-the-Loop (HITL).
 
-## 🎯 Objetivo do Projeto
+## 🚀 Tecnologias
 
-O objetivo do AdaptaAi é ajudar candidatos a:
-
-* Ajustar seus currículos de acordo com descrições de vagas reais
-* Evidenciar competências e experiências mais relevantes para cada oportunidade
-* Melhorar a taxa de aprovação em sistemas de recrutamento automatizados (ATS)
-* Economizar tempo no processo de candidatura a múltiplas vagas
-* Não adicionar informações falsas ou incorretas sobre o candidato
-
-## 🚀 Funcionalidades Principais
-
-* Upload e análise de currículos
-* Análise automática da descrição da vaga
-* Reescrita inteligente do currículo com foco na vaga alvo
-* Sugestões de melhorias em linguagem, palavras-chave e estrutura
-* Geração de versões múltiplas de um mesmo currículo
-* Histórico de currículos adaptados por vaga
-* Análise de compatibilidade ATS com score e recomendações
-* **Human-in-the-Loop (HITL)**: Usuário revisa análise antes de prosseguir
-
-## 🧠 Inteligência Artificial
-
-O AdaptaAi utiliza agentes inteligentes baseados em modelos de linguagem para:
-
-* Compreender requisitos técnicos e comportamentais das vagas
-* Identificar lacunas entre o currículo e a descrição da vaga
-* Reescrever trechos mantendo coerência, clareza e veracidade
-* Otimizar o conteúdo para leitura humana e sistemas ATS
+- **FastAPI** - Framework web Python
+- **SQLModel** - ORM para banco de dados
+- **SQLite/PostgreSQL** - Banco de dados
+- **Docker** - Containerização
+- **LangSmith** - Observabilidade
 
 ## 📋 Pré-requisitos
 
-### Python
-- Python 3.10 ou superior
-- pip (gerenciador de pacotes Python)
+- Python 3.11+
+- Docker e Docker Compose (opcional)
+- pip ou poetry
 
-## 🚀 Instalação e Setup
+## ⚙️ Configuração
 
-### 1. Clonar repositório
+### 1. Clone o repositório
+
 ```bash
 git clone <url-do-repositorio>
 cd AdaptaAi-BACKEND
 ```
 
-### 2. Criar ambiente virtual
+### 2. Crie o ambiente virtual
+
 ```bash
 python -m venv venv
 # Windows
 venv\Scripts\activate
-# Linux/macOS
+# Linux/Mac
 source venv/bin/activate
 ```
 
-### 3. Instalar dependências
+### 3. Instale as dependências
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configurar variáveis de ambiente
-Crie um arquivo `.env` na raiz do projeto:
+### 4. Configure as variáveis de ambiente
+
+O arquivo `.env` já está configurado com os valores padrão. Para personalizar, edite o arquivo `.env`:
+
 ```env
-GOOGLE_API_KEY=sua_chave_aqui
-LANGSMITH_API_KEY=sua_chave_aqui
-LANGSMITH_PROJECT=adaptaai
+# Database
+DATABASE_URL=sqlite:///./database.db
+
+# LangSmith (Observability)
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=sua-api-key
+LANGSMITH_PROJECT=Adaptaai
+
+# Google AI (Gemini)
+GOOGLE_API_KEY=sua-api-key
+
+# CORS
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Server
+HOST=0.0.0.0
+PORT=8000
 ```
 
-### 5. Rodar o servidor
+## 🏃‍♂️ Como Rodar
+
+### Opção 1: Local (Desenvolvimento)
+
 ```bash
-uvicorn app.main:app --reload
+# Ative o ambiente virtual e execute
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Acesse: `http://localhost:8000`
+A API estará disponível em: **http://localhost:8000**
 
-## 🛠️ Tecnologias e Frameworks Sugeridos
+### Opção 2: Docker Compose (Produção com PostgreSQL)
 
-### Frontend
+```bash
+docker-compose up --build
+```
 
-* **React**
-* **TypeScript**
-* **Tailwind CSS**
-* **Vite**
+## 📚 Documentação da API
 
-### Backend
-* **Python** com **FastAPI** (alternativa)
+Após iniciar o servidor, acesse:
 
-### Inteligência Artificial
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-* **Gemini API** ou modelos LLM compatíveis
-* **LangSmith**  para observabilidade
-* **Agno** para estruturar fluxo e ferramentas dos agentes
+### Endpoints Principais
 
-### Banco de Dados
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/` | Status do servidor |
+| POST | `/api/v1/auth/register` | Registrar usuário |
+| POST | `/api/v1/auth/login` | Login |
+| POST | `/api/v1/resumes/` | Criar currículo |
+| GET | `/api/v1/resumes/` | Listar currículos |
+| POST | `/api/v1/resumes/{id}/analyze` | Analisar currículo |
 
-* **PostgreSQL**
-* **MongoDB**
+## 🔗 Conexão com Front-end
 
-### Infraestrutura
+O backend está configurado para aceitar requisições CORS do front-end rodando em:
 
-* **Docker**
-* **AWS**, **GCP** ou **Vercel**
-* **CI/CD** com GitHub Actions
+- `http://localhost:5173` (Vite - Desenvolvimento)
+- `http://localhost:3000` (React - Alternativa)
 
-## 🔒 Considerações de Segurança e Privacidade
+### Configuração CORS (app/main.py)
 
-* Criptografia de dados sensíveis
-* Exclusão automática de currículos após período definido
-* Conformidade com LGPD
-* Autenticação via OAuth ou JWT
+```python
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+```
+
+## 🗄️ Banco de Dados
+
+### SQLite (Desenvolvimento)
+
+O banco SQLite é criado automaticamente na primeira execução em `database.db`.
+
+### PostgreSQL (Produção)
+
+Use Docker Compose para subir o PostgreSQL:
+
+```bash
+docker-compose up db
+```
+
+## 🧪 Testes
+
+```bash
+pytest
+```
+
+## 📁 Estrutura do Projeto
+
+```
+AdaptaAi-BACKEND/
+├── app/
+│   ├── api/          # Rotas da API
+│   ├── core/         # Configurações principais
+│   ├── db/           # Conexão com banco de dados
+│   ├── models/       # Modelos de dados
+│   ├── schemas/      # Schemas Pydantic
+│   └── services/     # Serviços de negócio
+├── agents/           # Agentes de IA
+├── .env              # Variáveis de ambiente
+├── compose.yaml      # Docker Compose
+├── Dockerfile        # Configuração Docker
+└── requirements.txt  # Dependências Python
+```
+
+## 🔑 Variáveis de Ambiente
+
+| Variável | Descrição | Padrão |
+|----------|-----------|--------|
+| `DATABASE_URL` | URL de conexão com banco | `sqlite:///./database.db` |
+| `DB_PASSWORD` | Senha do PostgreSQL | `adaptaai_secret_password` |
+| `LANGSMITH_API_KEY` | API Key LangSmith | - |
+| `GOOGLE_API_KEY` | API Key Google AI | - |
+| `SECRET_KEY` | Chave secreta JWT | `adaptaai` |
+| `CORS_ORIGINS` | Origens permitidas | `http://localhost:5173` |
+| `PORT` | Porta do servidor | `8000` |
+
+## 🤝 Integração com Front-end
+
+Para mais detalhes sobre a integração, consulte o README do [Front-end](../Adapta-AI-FRONT-END/README.md).
+
+## 📝 Licença
+
+MIT
