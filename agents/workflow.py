@@ -147,14 +147,21 @@ def extract_ats_score(step_input: StepInput) -> StepOutput:
 
 def process_user_confirmation(step_input: StepInput) -> StepOutput:
     """Processa a confirmação do usuário (HITL) e armazena a decisão"""
-    
-    user_input = step_input.user_input or {}
+
+    # Tenta obter user_input de diferentes formas compatíveis com agno
+    user_input = None
+    if hasattr(step_input, 'user_input') and step_input.user_input:
+        user_input = step_input.user_input
+    elif hasattr(step_input, 'additional_data') and step_input.additional_data:
+        user_input = step_input.additional_data
+    else:
+        user_input = {}
+
     user_proceeds = user_input.get("user_proceeds", True)
     feedback = user_input.get("feedback", "")
-    
+
     return StepOutput(
-        content=f"Usuário decidiu: {'Prosseguir' if user_proceeds else 'Não prosseguir'}",
-        additional_data={"user_proceeds": user_proceeds, "user_feedback": feedback}
+        content=f"Usuário decidiu: {'Prosseguir' if user_proceeds else 'Não prosseguir'}"
     )
 
 

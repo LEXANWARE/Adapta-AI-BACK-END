@@ -164,7 +164,7 @@ def handle_hitl(run_response):
                 field_name = field.name if hasattr(field, 'name') else field.get('name')
                 field_type = field.field_type if hasattr(field, 'field_type') else field.get('field_type')
                 description = field.description if hasattr(field, 'description') else field.get('description')
-                
+
                 if field_type == "bool":
                     prompt = f"{description} (s/n): "
                     value = input(prompt).strip().lower()
@@ -173,11 +173,16 @@ def handle_hitl(run_response):
                     prompt = f"{description}: "
                     user_data[field_name] = input(prompt).strip()
 
-            # ✅ Resolve o requirement usando função utilitária
-            if handle_hitl_requirement(requirement, user_data):
-                print(f"\n✅ Input registrado: {user_data}")
-            else:
-                print(f"\n❌ Erro ao registrar input")
+            # ✅ Resolve o requirement usando set_user_input diretamente
+            try:
+                if hasattr(requirement, 'set_user_input'):
+                    requirement.set_user_input(**user_data)
+                    print(f"\n✅ Input registrado: {user_data}")
+                else:
+                    print(f"\n❌ Requirement não tem método set_user_input")
+                    return False
+            except Exception as e:
+                print(f"\n❌ Erro ao registrar input: {e}")
                 return False
 
         print("\n⏩ Retomando execução do workflow...")
@@ -217,7 +222,7 @@ if __name__ == "__main__":
                 # Continua execução após HITL
                 run_response = resume_optimizer_workflow.continue_run(
                     run_response=run_response,
-                    step_requirements=run_response.step_requirements
+                    step_requirements=run_response.step_requirements if hasattr(run_response, 'step_requirements') else None,
                 )
             else:
                 break
