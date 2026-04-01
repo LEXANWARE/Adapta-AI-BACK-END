@@ -1,12 +1,8 @@
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
-STRICT_CONFIG = ConfigDict(
-    extra='ignore',
-)
 
 class Location(BaseModel):
-    model_config = STRICT_CONFIG
     address: Optional[str] = Field(None, description="Endereço ou Rua")
     postalCode: Optional[str] = Field(None, description="CEP")
     city: Optional[str] = Field(None, description="Cidade")
@@ -15,7 +11,6 @@ class Location(BaseModel):
 
 
 class Basics(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Nome completo do candidato")
     label: Optional[str] = Field(None, description="Título profissional ou cargo alvo")
     image: Optional[str] = Field(None, description="URL de imagem/foto de perfil")
@@ -27,13 +22,11 @@ class Basics(BaseModel):
 
 
 class Profile(BaseModel):
-    model_config = STRICT_CONFIG
     network: Optional[str] = Field(None, description="Nome da rede social (ex: LinkedIn, GitHub)")
     username: Optional[str] = Field(None, description="Usuário na rede social")
     url: Optional[str] = Field(None, description="URL do perfil")
 
 class Work(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Nome da empresa")
     position: str = Field(..., description="Cargo ocupado")
     url: Optional[str] = Field(None, description="URL da empresa")
@@ -43,7 +36,6 @@ class Work(BaseModel):
     highlights: List[str] = Field(default_factory=list, description="Lista de conquistas/pontos chave")
 
 class Education(BaseModel):
-    model_config = STRICT_CONFIG
     institution: str = Field(..., description="Instituição de ensino")
     area: str = Field(..., description="Curso ou área de estudo")
     studyType: str = Field(..., description="Tipo (Bacharelado, Curso, etc)")
@@ -53,26 +45,22 @@ class Education(BaseModel):
 
 
 class Award(BaseModel):
-    model_config = STRICT_CONFIG
     title: str = Field(..., description="Título do prêmio")
     date: Optional[str] = Field(None, description="Data em que o prêmio foi recebido")
     awarder: Optional[str] = Field(None, description="Organização que concedeu o prêmio")
     summary: Optional[str] = Field(None, description="Resumo ou contexto do prêmio")
 
 class Skill(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Categoria da habilidade (ex: Linguagens)")
     keywords: List[str] = Field(default_factory=list, description="Lista de skills (ex: Python, Java)")
 
 class Project(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Nome do projeto")
     description: Optional[str] = None
     url: Optional[str] = None
 
 
 class Certificate(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Nome da certificação")
     date: Optional[str] = Field(None, description="Data da certificação")
     issuer: Optional[str] = Field(None, description="Entidade emissora")
@@ -80,7 +68,6 @@ class Certificate(BaseModel):
 
 
 class Publication(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Nome da publicação")
     publisher: Optional[str] = Field(None, description="Publicador")
     releaseDate: Optional[str] = Field(None, description="Data de publicação")
@@ -88,25 +75,22 @@ class Publication(BaseModel):
     summary: Optional[str] = Field(None, description="Resumo da publicação")
 
 class Language(BaseModel):
-    model_config = STRICT_CONFIG
     language: str = Field(..., description="Idioma")
     fluency: Optional[str] = Field(None, description="Nível de fluência")
 
 
 class Interest(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Área de interesse")
     keywords: List[str] = Field(default_factory=list, description="Palavras-chave relacionadas ao interesse")
 
 
 class Reference(BaseModel):
-    model_config = STRICT_CONFIG
     name: str = Field(..., description="Nome da referência")
     reference: Optional[str] = Field(None, description="Texto da recomendação ou contato")
 
 
 class ResumeScheme(BaseModel):
-    model_config = STRICT_CONFIG
+    model_config = ConfigDict(extra='ignore')
     basics: Optional[Basics] = None
     work: List[Work] = Field(default_factory=list)
     education: List[Education] = Field(default_factory=list)

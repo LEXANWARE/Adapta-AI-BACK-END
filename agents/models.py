@@ -21,14 +21,14 @@ load_dotenv(dotenv_path=Path(ENV_PATH))
 
 # Configuração do LangSmith (Observabilidade)
 if os.getenv("LANGSMITH_TRACING", "").lower() == "true":
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_ENDPOINT"] = os.getenv(
+    os.environ["LANGSMITH_TRACING"] = "true"
+    os.environ["LANGSMITH_ENDPOINT"] = os.getenv(
         "LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"
     )
-    os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
-    os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGSMITH_PROJECT", "AdaptaAi")
+    os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
+    os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT", "AdaptaAi")
 
-# Configuração do Modelo e Guradrails
+
 model_instance = Gemini(
     id="gemini-2.5-flash",
     api_key=os.getenv("GOOGLE_API_KEY"),

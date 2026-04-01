@@ -1,8 +1,15 @@
+import os
 import json
+import logging
 from textwrap import dedent
 from agno.db.sqlite import SqliteDb
 from agno.workflow import Condition, Parallel, Step, Workflow
 from agno.workflow.types import StepInput, StepOutput, OnReject, OnError
+from openinference.instrumentation.agno import AgnoInstrumentor
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from agents.models import (
     vacancy_agent,
     resume_agent,
@@ -59,9 +66,40 @@ def prepare_enrich_input(step_input: StepInput) -> StepOutput:
 
 
 def combine_for_upgrade(step_input: StepInput) -> StepOutput:
-    """Combina todas as análises para o agente de upgrade"""
+    """Combina todas as análises para o agente de upgrade.
+    
+    Verifica a decisão do usuário antes de prosseguir com a otimização.
+    """
+    
+    logger = logging.getLogger(__name__)
     data = step_input.additional_data or {}
 
+    # Obtém resultado da confirmação do usuário
+    user_confirmation_raw = step_input.get_step_content("User Confirmation") or ""
+    user_proceeds = True  # Default para True se não encontrado
+    
+    try:
+        if user_confirmation_raw:
+            # Tenta parsear como JSON (novo formato)
+            user_confirmation = json.loads(user_confirmation_raw)
+            user_proceeds = user_confirmation.get("user_proceeds", True)
+            logger.info(f"Confirmação do usuário (JSON): {user_confirmation}")
+    except (json.JSONDecodeError, TypeError):
+        # Formato antigo: string de texto
+        if "Não prosseguir" in user_confirmation_raw or "cancel" in user_confirmation_raw.lower():
+            user_proceeds = False
+        logger.info(f"Confirmação do usuário (texto): {user_confirmation_raw}, user_proceeds={user_proceeds}")
+
+    # Se usuário não prosseguir, retorna mensagem de cancelamento
+    if not user_proceeds:
+        return StepOutput(
+            content=json.dumps({
+                "cancelled": True,
+                "reason": "Usuário optou por não prosseguir com a otimização"
+            }, ensure_ascii=False)
+        )
+
+    # Prossegue com combinação normal
     vacancy_analysis = step_input.get_step_content("Analyze Vacancy") or ""
     resume_analysis = step_input.get_step_content("Analyze Resume") or ""
     enriched_resume = step_input.get_step_content("Enrich Resume") or ""
@@ -146,24 +184,56 @@ def extract_ats_score(step_input: StepInput) -> StepOutput:
 
 
 def process_user_confirmation(step_input: StepInput) -> StepOutput:
-    """Processa a confirmação do usuário (HITL) e armazena a decisão"""
+    """Processa a confirmação do usuário (HITL) e armazena a decisão.
+    
+    Retorna um JSON estruturado com a decisão do usuário para facilitar
+    o processamento downstream no workflow.
+    """
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Processando confirmação do usuário. step_input: {step_input}")
 
     # Tenta obter user_input de diferentes formas compatíveis com agno
     user_input = None
     if hasattr(step_input, 'user_input') and step_input.user_input:
         user_input = step_input.user_input
+        logger.info(f"user_input obtido de step_input.user_input: {user_input}")
     elif hasattr(step_input, 'additional_data') and step_input.additional_data:
         user_input = step_input.additional_data
+        logger.info(f"user_input obtido de step_input.additional_data: {user_input}")
     else:
         user_input = {}
+        logger.warning("Nenhum user_input encontrado, usando dict vazio")
 
     user_proceeds = user_input.get("user_proceeds", True)
     feedback = user_input.get("feedback", "")
+    
+    logger.info(f"Decisão do usuário: user_proceeds={user_proceeds}, feedback={feedback}")
 
+    # Retorna JSON estruturado com a decisão
+    decision_data = {
+        "user_proceeds": user_proceeds,
+        "feedback": feedback or None,
+        "decision": "proceed" if user_proceeds else "cancel"
+    }
+    
     return StepOutput(
-        content=f"Usuário decidiu: {'Prosseguir' if user_proceeds else 'Não prosseguir'}"
+        content=json.dumps(decision_data, ensure_ascii=False)
     )
 
+
+headers = {
+    "x-api-key": os.getenv("LANGSMITH_API_KEY"),
+    "Langsmith-Project": os.getenv("LANGSMITH_PROJECT"),
+}
+
+# Configure the tracer provider
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(
+    SimpleSpanProcessor(OTLPSpanExporter(endpoint=os.environ["LANGSMITH_ENDPOINT"], headers=headers))
+)
+trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+AgnoInstrumentor().instrument()
 
 resume_optimizer_workflow = Workflow(
     name="Resume Optimizer",

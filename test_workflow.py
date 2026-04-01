@@ -1,4 +1,5 @@
 import json
+import logging
 import traceback
 from agents.workflow import resume_optimizer_workflow
 from agents.utils.hitl_utils import (
@@ -8,6 +9,13 @@ from agents.utils.hitl_utils import (
     get_workflow_status,
     extract_workflow_result,
 )
+
+# Configura logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 curriculo_texto = """LUCAS MELO DE SOUZA
 Telefone: +55 (85) 99968-6875 | E-mail: lucasouza280604@gmail.com
@@ -147,7 +155,7 @@ Programa de Gestantes;
 Licença Maternidade e Paternidade Estendida – empresa Cidadã."""
 
 def handle_hitl(run_response):
-    """Função para lidar com HITL no workflow"""
+    """Função para lidar com HITL no workflow com as correções implementadas."""
     if hasattr(run_response, 'steps_requiring_user_input') and run_response.steps_requiring_user_input:
         print("\n" + "="*80)
         print("🔴 WORKFLOW PAUSADO - Aguardando input do usuário")
@@ -178,11 +186,13 @@ def handle_hitl(run_response):
                 if hasattr(requirement, 'set_user_input'):
                     requirement.set_user_input(**user_data)
                     print(f"\n✅ Input registrado: {user_data}")
+                    logger.info(f"Requirement resolvido: step_name={requirement.step_name}, is_resolved={requirement.is_resolved}")
                 else:
                     print(f"\n❌ Requirement não tem método set_user_input")
                     return False
             except Exception as e:
                 print(f"\n❌ Erro ao registrar input: {e}")
+                logger.error(f"Erro ao resolver requirement: {e}")
                 return False
 
         print("\n⏩ Retomando execução do workflow...")
@@ -197,9 +207,12 @@ if __name__ == "__main__":
     print("="*80)
     print("🚀 INICIANDO WORKFLOW DE OTIMIZAÇÃO DE CURRÍCULO")
     print("="*80)
+    
+    logger.info("Iniciando teste do workflow HITL")
 
     try:
         # Executa o workflow
+        logger.info("Executando workflow...")
         run_response = resume_optimizer_workflow.run(
             input="Otimize meu currículo para esta vaga",
             additional_data={
@@ -208,23 +221,34 @@ if __name__ == "__main__":
                 'info_adicional': input_usuario_enrich
             }
         )
+        
+        logger.info(f"Workflow executado: session_id={getattr(run_response, 'session_id', 'N/A')}")
 
         # Loop para lidar com múltiplas pausas (se houver)
+        iteration = 0
         while True:
+            iteration += 1
             status = get_workflow_status(run_response)
-            print(f"\n📊 Status do workflow: {status}")
-            
+            print(f"\n📊 Status do workflow (iteração {iteration}): {status}")
+            logger.info(f"Iteração {iteration}: status={status}")
+
             if status != "paused":
+                logger.info(f"Workflow não está mais pausado, saindo do loop")
                 break
-                
+
             # Processa HITL
             if handle_hitl(run_response):
                 # Continua execução após HITL
+                logger.info("Continuando workflow com step_requirements...")
+                step_requirements = getattr(run_response, 'step_requirements', None) or getattr(run_response, 'steps_requiring_user_input', None)
+                
                 run_response = resume_optimizer_workflow.continue_run(
                     run_response=run_response,
-                    step_requirements=run_response.step_requirements if hasattr(run_response, 'step_requirements') else None,
+                    step_requirements=step_requirements,
                 )
+                logger.info("Workflow continuado")
             else:
+                logger.warning("HITL falhou, interrompendo execução")
                 break
 
         # Exibe resultado final
@@ -249,13 +273,30 @@ if __name__ == "__main__":
             try:
                 output_file = "currículo_otimizado.json"
                 with open(output_file, 'w', encoding='utf-8') as f:
-                    f.write(content_str)
+                    if isinstance(final_content, dict):
+                        json.dump(final_content, f, ensure_ascii=False, indent=2)
+                    else:
+                        f.write(content_str)
                 print(f"\n💾 Resultado salvo em: {output_file}")
+                logger.info(f"Resultado salvo em {output_file}")
             except Exception as e:
                 print(f"\n⚠️  Não foi possível salvar arquivo: {e}")
+                logger.error(f"Erro ao salvar arquivo: {e}")
         else:
             print("\n⚠️  Nenhum conteúdo retornado pelo workflow")
+            logger.warning("Nenhum conteúdo retornado pelo workflow")
+            
+        # Exibe análise ATS se disponível
+        step_outputs = getattr(run_response, 'step_outputs', {})
+        if step_outputs:
+            ats_analysis = extract_ats_analysis(step_outputs)
+            if ats_analysis:
+                print("\n📊 ANÁLISE ATS:")
+                print("-" * 40)
+                print(f"Score: {ats_analysis.get('ats_score', 'N/A')}/100")
+                logger.info(f"ATS Score: {ats_analysis.get('ats_score', 'N/A')}/100")
 
     except Exception as e:
         print(f"\n❌ ERRO: {e}")
+        logger.error(f"Erro no teste: {e}", exc_info=True)
         traceback.print_exc()
