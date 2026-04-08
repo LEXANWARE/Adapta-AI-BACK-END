@@ -3,9 +3,6 @@ import logging
 import traceback
 from agents.workflow import resume_optimizer_workflow
 from agents.utils.hitl_utils import (
-    extract_ats_analysis,
-    extract_optimized_resume,
-    handle_hitl_requirement,
     get_workflow_status,
     extract_workflow_result,
 )
@@ -155,7 +152,7 @@ Programa de Gestantes;
 Licença Maternidade e Paternidade Estendida – empresa Cidadã."""
 
 def handle_hitl(run_response):
-    """Função para lidar com HITL no workflow com as correções implementadas."""
+    """Função para lidar com HITL no workflow."""
     if hasattr(run_response, 'steps_requiring_user_input') and run_response.steps_requiring_user_input:
         print("\n" + "="*80)
         print("🔴 WORKFLOW PAUSADO - Aguardando input do usuário")
@@ -174,14 +171,14 @@ def handle_hitl(run_response):
                 description = field.description if hasattr(field, 'description') else field.get('description')
 
                 if field_type == "bool":
-                    prompt = f"{description} (s/n): "
-                    value = input(prompt).strip().lower()
-                    user_data[field_name] = value in ['s', 'sim', 'yes', 'y', 'true', '1']
+                    # Para teste automatizado, define como True
+                    user_data[field_name] = True
+                    print(f"✅ {description}: Sim (automático)")
                 else:
-                    prompt = f"{description}: "
-                    user_data[field_name] = input(prompt).strip()
+                    user_data[field_name] = ""
+                    print(f"ℹ️ {description}: (vazio)")
 
-            # ✅ Resolve o requirement usando set_user_input diretamente
+            # Resolve o requirement usando set_user_input
             try:
                 if hasattr(requirement, 'set_user_input'):
                     requirement.set_user_input(**user_data)
@@ -200,7 +197,7 @@ def handle_hitl(run_response):
     return False
 
 def extract_final_result(run_response):
-    """Extrai o resultado final do workflow usando função utilitária."""
+    """Extrai o resultado final do workflow."""
     return extract_workflow_result(run_response)
 
 if __name__ == "__main__":
@@ -262,12 +259,6 @@ if __name__ == "__main__":
             print("\n📄 RESULTADO FINAL:")
             print("-" * 40)
             content_str = str(final_content)
-            # Se for muito grande, mostra os primeiros 2000 caracteres
-            if len(content_str) > 2000:
-                print(content_str[:2000])
-                print(f"\n... (conteúdo truncado, total de {len(content_str)} caracteres)")
-            else:
-                print(content_str)
 
             # Tenta salvar o resultado em arquivo
             try:
@@ -288,13 +279,24 @@ if __name__ == "__main__":
             
         # Exibe análise ATS se disponível
         step_outputs = getattr(run_response, 'step_outputs', {})
-        if step_outputs:
-            ats_analysis = extract_ats_analysis(step_outputs)
-            if ats_analysis:
+        if step_outputs and isinstance(step_outputs, dict):
+            ats_output = step_outputs.get("ATS Analysis")
+            if ats_output:
                 print("\n📊 ANÁLISE ATS:")
                 print("-" * 40)
-                print(f"Score: {ats_analysis.get('ats_score', 'N/A')}/100")
-                logger.info(f"ATS Score: {ats_analysis.get('ats_score', 'N/A')}/100")
+                try:
+                    if hasattr(ats_output, 'model_dump'):
+                        ats_data = ats_output.model_dump()
+                    elif isinstance(ats_output, dict):
+                        ats_data = ats_output
+                    else:
+                        ats_data = json.loads(str(ats_output))
+                    
+                    print(f"Score: {ats_data.get('ats_score', 'N/A')}/100")
+                    logger.info(f"ATS Score: {ats_data.get('ats_score', 'N/A')}/100")
+                except Exception as e:
+                    print(f"Erro ao extrair análise ATS: {e}")
+                    logger.error(f"Erro ao extrair ATS: {e}")
 
     except Exception as e:
         print(f"\n❌ ERRO: {e}")

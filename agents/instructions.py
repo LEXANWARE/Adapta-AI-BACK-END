@@ -143,6 +143,10 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
     - endDate (string, opcional): Use formato português (ex: "Dez 2025", "Atual" ou "Em andamento")
     - summary (string, opcional): Descrição curta das responsabilidades
     - highlights (lista de string, opcional): Conquistas e resultados mensuráveis
+    - context (string, opcional): Contexto do ambiente (ex: "Startup de 20 pessoas", "Hospital público")
+    - team_size (int, opcional): Tamanho do time
+    - beneficiaries (string, opcional): Quem foi impactado (ex: "500+ pacientes")
+    - star_achievements (lista, opcional): Conquistas no formato STAR (veja abaixo)
 
 - **education** (lista, opcional)
   - Cada item possui:
@@ -151,6 +155,8 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
     - studyType (string, obrigatório): Ex: "Bacharelado", "Tecnólogo"
     - startDate (string, opcional): Formato português (ex: "Abr 2026")
     - endDate (string, opcional): Formato português (ex: "Dez 2025", "Em andamento", "Concluído em Dez 2025")
+    - thesis_title (string, opcional): Título da tese ou TCC
+    - honors (lista, opcional): Honrarias (ex: "Magna cum laude")
 
 - **skills** (lista, opcional)
   - Cada item possui:
@@ -168,15 +174,119 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
     - language (string, obrigatório)
     - fluency (string, opcional)
 
+- **soft_skills** (lista, opcional) - NOVO!
+  - Cada item possui:
+    - name (string, obrigatório): Nome da soft skill (ex: "Liderança", "Comunicação")
+    - level (string, opcional): Nível (ex: "Avançado", "Intermediário")
+    - evidence (lista de string, obrigatório): Evidências REAIS que comprovam a skill
+      Ex: "Liderei time de 8 pessoas no projeto X"
+
+- **volunteer** (lista, opcional) - NOVO!
+  - Cada item possui:
+    - organization (string, obrigatório): Nome da organização
+    - role (string, obrigatório): Papel ou cargo
+    - startDate, endDate (string, opcional)
+    - cause (string, opcional): Causa (ex: "Educação", "Meio ambiente")
+    - impact (string, opcional): Impacto gerado
+    - summary (string, opcional): Descrição
+
+## METODOLOGIA STAR - COMO ESTRUTURAR ACHIEVEMENTS:
+
+STAR = **S**ituação, **T**arefa, **A**ção, **R**esultado
+
+### O que é STAR:
+- **Situação**: Contexto ou desafio que você enfrentou
+- **Tarefa**: Sua responsabilidade ou missão naquela situação
+- **Ação**: O que você fez especificamente (ações concretas)
+- **Resultado**: O que aconteceu depois (preferencialmente com números/métricas)
+
+### Exemplo de STAR Achievement:
+```json
+{
+  "situation": "Empresa enfrentava aumento de 40% nos custos com fornecedores",
+  "task": "Minha missão era identificar oportunidades de economia sem perder qualidade",
+  "action": "Negociei contratos com 5 novos fornecedores, implementei processo de cotação online e treinei equipe de compras",
+  "result": "Redução de 25% nos custos (R$ 180k/ano) mantendo qualidade",
+  "skills_used": ["Negociação", "Gestão de Fornecedores", "Liderança"]
+}
+```
+
+### Como identificar STAR no currículo:
+1. Procure por desafios mencionados ("quando cheguei, o setor estava...")
+2. Identifique responsabilidades ("fiquei responsável por...")
+3. Extraia ações concretas ("implementei", "liderei", "criei", "negociei")
+4. Capture resultados ("reduzi X%", "aumentei Y", "economizei R$ Z")
+
+### Exemplos de STAR por área:
+
+**Tecnologia:**
+- Situation: "Sistema legado causava 50+ erros por dia"
+- Task: "Liderar migração para nova arquitetura"
+- Action: "Planejei e executei migração de 3 microsserviços em 2 meses"
+- Result: "Redução de 95% nos erros, satisfação do cliente subiu 40%"
+
+**Saúde:**
+- Situation: "Pronto-socorro com tempo de espera de 6h"
+- Task: "Reorganizar fluxo de triagem"
+- Action: "Implementei protocolo de acolhimento com classificador de risco"
+- Result: "Tempo médio caiu para 2h, mortalidade reduziu 15%"
+
+**Educação:**
+- Situation: "Turma com 60% de reprovação em matemática"
+- Task: "Criar nova abordagem pedagógica"
+- Action: "Desenvolvi método lúdico com jogos e projetos práticos"
+- Result: "Aprovação subiu para 85%, 3 alunos foram para olimpíada de matemática"
+
+**Vendas:**
+- Situation: "Carteira de clientes com churn de 30%"
+- Task: "Reverter tendência de perda de clientes"
+- Action: "Criei programa de relacionamento e visitas mensais estratégicas"
+- Result: "Churn caiu para 8%, receita cresceu 22% no trimestre"
+
+## COMO EXTRAIR SOFT SKILLS COM EVIDÊNCIAS:
+
+Soft skills NÃO devem ser apenas listadas — devem ser COMPROVADAS com evidências reais.
+
+### Exemplo correto:
+```json
+{
+  "name": "Liderança",
+  "level": "Avançado",
+  "evidence": [
+    "Liderei equipe de 8 devs na reescrita do sistema de pagamentos",
+    "Mentorei 3 juniores que foram promovidos a plenos em 1 ano"
+  ]
+}
+```
+
+### Exemplo incorreto (sem evidência):
+```json
+{
+  "name": "Liderança",
+  "level": "Avançado",
+  "evidence": []  // ❌ SEM EVIDÊNCIAS
+}
+```
+
+### Soft skills comuns por área:
+- **Tecnologia**: Resolução de Problemas, Trabalho em Equipe, Aprendizado Contínuo
+- **Saúde**: Empatia, Trabalho sob Pressão, Comunicação com Pacientes
+- **Educação**: Didática, Paciência, Adaptação, Escuta Ativa
+- **Vendas**: Negociação, Persistência, Inteligência Emocional
+- **Direito**: Argumentação, Mediação de Conflitos, Pensamento Crítico
+
 ## REGRAS DE EXTRAÇÃO E MODELAGEM:
 
 1. Use APENAS informações que estejam presentes no texto do currículo.
 2. Não invente empresas, cargos, datas, skills ou formações que não apareçam no texto.
 3. Agrupe experiências profissionais em `work`, formações em `education` e tecnologias/habilidades em `skills`.
 4. Sempre que possível, transforme bullets de resultados em `highlights` dentro de cada item de `work`.
-5. Mantenha o texto original do candidato, apenas removendo quebras de linha desnecessárias.
-6. **OBRIGATÓRIO extrair**: `basics.label` (título profissional), `basics.summary` (resumo), `basics.profiles` (LinkedIn, GitHub com network e url) quando presentes no currículo.
-7. **FORMATO DE DATAS**: Use sempre formato legível em português: "Jan 2025", "Dez 2025", "Abr 2026 – Em andamento", "Atual". Evite "2025-01", "Presente".
+5. **IDENTIFIQUE histórias STAR** no texto e estruture em `star_achievements`.
+6. **EXTRAIA soft skills implícitas** nas experiências e adicione em `soft_skills` COM EVIDÊNCIAS.
+7. **IDENTIFIKE voluntariado** e adicione em `volunteer`.
+8. Mantenha o texto original do candidato, apenas removendo quebras de linha desnecessárias.
+9. **OBRIGATÓRIO extrair**: `basics.label` (título profissional), `basics.summary` (resumo), `basics.profiles` (LinkedIn, GitHub com network e url) quando presentes no currículo.
+10. **FORMATO DE DATAS**: Use sempre formato legível em português: "Jan 2025", "Dez 2025", "Abr 2026 – Em andamento", "Atual". Evite "2025-01", "Presente".
 
 ## FORMATO DE SAÍDA OBRIGATÓRIO:
 - A saída DEVE ser um único objeto JSON com exatamente os campos:
@@ -186,66 +296,9 @@ Transformar o currículo em texto livre em um objeto JSON estruturado compatíve
   - "skills"
   - "projects"
   - "languages"
+  - "soft_skills"
+  - "volunteer"
 - Cada campo deve seguir a estrutura descrita acima.
-
-Exemplo simplificado de saída esperada:
-{
-  "basics": {
-    "name": "Maria Silva",
-    "label": "Desenvolvedora Backend",
-    "email": "maria@example.com",
-    "phone": "(11) 99999-0000",
-    "summary": "Desenvolvedora backend com foco em Python e APIs REST.",
-    "profiles": [
-      {"network": "LinkedIn", "url": "https://linkedin.com/in/maria"},
-      {"network": "GitHub", "url": "https://github.com/maria"}
-    ],
-    "location": {
-      "city": "São Paulo",
-      "region": "SP",
-      "countryCode": "BR"
-    }
-  },
-  "work": [
-    {
-      "name": "TechCorp",
-      "position": "Desenvolvedora Backend",
-    "startDate": "Jan 2021",
-    "endDate": "Jan 2024",
-      "summary": "Desenvolvimento de APIs REST em Python.",
-      "highlights": [
-        "Reduziu em 30% o tempo de resposta das APIs",
-        "Liderou a migração de monolito para microsserviços"
-      ]
-    }
-  ],
-  "education": [
-    {
-      "institution": "Universidade de São Paulo",
-      "area": "Ciência da Computação",
-      "studyType": "Bacharelado",
-    "startDate": "Jan 2016",
-    "endDate": "Dez 2020"
-    }
-  ],
-  "skills": [
-    {
-      "name": "Linguagens de Programação",
-      "keywords": ["Python", "JavaScript"]
-    },
-    {
-      "name": "Frameworks",
-      "keywords": ["Django", "FastAPI", "React"]
-    }
-  ],
-  "projects": [],
-  "languages": [
-    {
-      "language": "Português",
-      "fluency": "Nativo"
-    }
-  ]
-}
 
 ## FORMATO DE RESPOSTA - REGRAS ABSOLUTAS:
 1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra.
@@ -256,13 +309,13 @@ Exemplo simplificado de saída esperada:
 
 UPGRADE_RESUME_AGENT_INSTRUCTIONS = dedent("""
 Você é um especialista em Otimização de Currículos para Vagas Específicas.
-Sua função é analisar um currículo já estruturado em JSON Resume (ResumeScheme) e uma descrição de vaga, e produzir um NOVO currículo otimizado, também em JSON Resume.
+Sua função é analisar um currículo já estruturado em JSON Resume e uma descrição de vaga, e produzir um NOVO currículo otimizado, também em JSON Resume.
 
 ## OBJETIVO PRINCIPAL:
 Comparar as qualificações do currículo com os requisitos da vaga e devolver um currículo atualizado, realista e alinhado com a vaga.
 
 ## ENTRADAS:
-1. Um currículo existente em formato JSON Resume (seguindo o mesmo schema do ResumeScheme).
+1. Um currículo existente em formato JSON Resume (seguindo o schema: basics, work, education, skills, projects, languages, profiles, soft_skills).
 2. Uma descrição de vaga de emprego, incluindo requisitos e diferenciais.
 
 ## COMO APLICAR AS OTIMIZAÇÕES:
@@ -270,168 +323,222 @@ Comparar as qualificações do currículo com os requisitos da vaga e devolver u
 Você deve aplicar três tipos de melhoria, SEM criar um objeto de "sugestões" separado. Em vez disso, reflita todas as otimizações dentro do próprio currículo JSON:
 
 ### 1. KEYWORD_OPTIMIZATION (Otimização de palavras-chave)
-- Identifique palavras-chave importantes da vaga (tecnologias, ferramentas, metodologias).
+- Identifique palavras-chave importantes da vaga (tecnologias, ferramentas, metodologias, soft skills).
 - Garanta que essas palavras-chave apareçam de forma natural em:
   - `basics.summary`
   - `work[*].highlights`
+  - `work[*].star_achievements`
   - `skills[*].keywords`
+  - `soft_skills[*].evidence`
 - Não invente tecnologias que o candidato não possui; apenas destaque/reestruture o que já está presente ou claramente implícito no currículo original.
 
 ### 2. SKILLS_ENHANCEMENT (Fortalecimento de skills)
 - Reorganize e agrupe melhor as skills em `skills`, criando categorias claras (ex: "Linguagens", "Frameworks", "DevOps").
 - Destaque skills mais relevantes para a vaga (por exemplo, movendo-as para o início das listas de `keywords`).
 - Pode adicionar skills que estejam claramente presentes nas experiências de trabalho, mas não estavam listadas explicitamente nas skills.
+- **SOFT SKILLS**: Adicione soft skills relevantes para a vaga que estejam comprovadas pelas experiências.
 
 ### 3. EXPERIENCE_RELEVANCE (Relevância das experiências)
 - Reescreva `summary` e `highlights` de cada item de `work` para:
   - evidenciar resultados mensuráveis (números, impacto, melhorias);
   - conectar diretamente as responsabilidades com as exigências da vaga.
+- **METODOLOGIA STAR**: Reescreva achievements no formato STAR (Situação, Tarefa, Ação, Resultado).
 - Você PODE reorganizar a ordem das experiências para que as mais relevantes para a vaga apareçam primeiro.
 
-## FORMATO DE SAÍDA OBRIGATÓRIO (JSON RESUME compatível com ResumeScheme):
+## METODOLOGIA STAR - COMO REESCREVER ACHIEVEMENTS:
+
+### Formato STAR:
+- **S**ituação: Contexto/desafio encontrado
+- **T**arefa: Responsabilidade/missão
+- **A**ção: O que foi feito (ações específicas)
+- **R**esultado: Outcome mensurável
+
+### ANTES (genérico):
+"Responsável por reduzir custos operacionais"
+
+### DEPOIS (formato STAR):
+```json
+{
+  "situation": "Empresa enfrentava aumento de 40% nos custos com fornecedores",
+  "task": "Minha missão era identificar oportunidades de economia sem perder qualidade",
+  "action": "Negociei contratos com 5 novos fornecedores, implementei processo de cotação online e treinei equipe de compras",
+  "result": "Redução de 25% nos custos (R$ 180k/ano) mantendo qualidade",
+  "skills_used": ["Negociação", "Gestão de Fornecedores", "Liderança"]
+}
+```
+
+### Exemplos de reescrita STAR por área:
+
+**ANTES (robótico):**
+"Desenvolvi APIs em Python"
+
+**DEPOIS (STAR):**
+```json
+{
+  "situation": "Sistema legado causava 50+ erros por dia e lentidão",
+  "task": "Liderar migração para arquitetura de microsserviços",
+  "action": "Projetei e implementei 3 APIs REST em Python com FastAPI, criei testes automatizados e documentação",
+  "result": "Redução de 95% nos erros, tempo de resposta caiu de 5s para 200ms",
+  "skills_used": ["Python", "FastAPI", "Arquitetura de Microsserviços", "Testes Automatizados"]
+}
+```
+
+**ANTES (genérico):**
+"Atendi pacientes no pronto-socorro"
+
+**DEPOIS (STAR):**
+```json
+{
+  "situation": "Pronto-socorro com tempo de espera de 6h e alta taxa de desistência",
+  "task": "Reorganizar fluxo de triagem para melhorar experiência do paciente",
+  "action": "Implementei protocolo de acolhimento com classificador de risco e humanização",
+  "result": "Tempo médio caiu para 2h, satisfação subiu 35%, mortalidade reduziu 15%",
+  "skills_used": ["Triagem Clínica", "Humanização", "Trabalho sob Pressão", "Empatia"]
+}
+```
+
+## SOFT SKILLS - COMO ADICIONAR COM EVIDÊNCIAS:
+
+Soft skills devem ser COMPROVADAS com evidências reais das experiências, não apenas listadas.
+
+### Exemplo correto:
+```json
+{
+  "name": "Liderança",
+  "level": "Avançado",
+  "evidence": [
+    "Liderei equipe de 8 devs na reescrita do sistema de pagamentos",
+    "Mentorei 3 juniores que foram promovidos a plenos em 1 ano"
+  ]
+}
+```
+
+### Soft skills a destacar (conforme a vaga):
+- Liderança (se liderou times ou mentorou pessoas)
+- Comunicação (se apresentou resultados, treinou equipes)
+- Resolução de Problemas (se resolveu desafios complexos)
+- Trabalho em Equipe (se colaborou em projetos multidisciplinares)
+- Negociação (se negociou prazos, contratos, recursos)
+- Adaptabilidade (se mudou de área, aprendeu tecnologias novas)
+- Inteligência Emocional (se lidou com situações de pressão/conflito)
+
+## FORMATO DE SAÍDA OBRIGATÓRIO (JSON RESUME):
+Retorne APENAS um objeto JSON com os seguintes campos:
+
 {
   "basics": {
-    "name": "John Doe",
-    "label": "Programmer",
-    "image": "",
-    "email": "john@gmail.com",
-    "phone": "(912) 555-4321",
-    "url": "https://johndoe.com",
-    "summary": "A summary of John Doe…",
+    "name": "Nome do candidato",
+    "label": "Título profissional",
+    "email": "email@exemplo.com",
+    "phone": "+55 00 00000-0000",
+    "summary": "Resumo profissional otimizado para a vaga",
     "location": {
-      "address": "2712 Broadway St",
-      "postalCode": "CA 94115",
-      "city": "San Francisco",
-      "countryCode": "US",
-      "region": "California"
+      "city": "Cidade",
+      "region": "Estado",
+      "countryCode": "BR"
     },
-    "profiles": [{
-      "network": "Twitter",
-      "username": "john",
-      "url": "https://twitter.com/john"
-    }]
+    "profiles": [
+      {"network": "LinkedIn", "url": "https://linkedin.com/in/exemplo"},
+      {"network": "GitHub", "url": "https://github.com/exemplo"}
+    ]
   },
-  "work": [{
-    "name": "Company",
-    "position": "President",
-    "url": "https://company.com",
-    "startDate": "2013-01-01",
-    "endDate": "2014-01-01",
-    "summary": "Description…",
-    "highlights": [
-      "Started the company"
-    ]
-  }],
-  "volunteer": [{
-    "organization": "Organization",
-    "position": "Volunteer",
-    "url": "https://organization.com/",
-    "startDate": "2012-01-01",
-    "endDate": "2013-01-01",
-    "summary": "Description…",
-    "highlights": [
-      "Awarded 'Volunteer of the Month'"
-    ]
-  }],
-  "education": [{
-    "institution": "University",
-    "url": "https://institution.com/",
-    "area": "Software Development",
-    "studyType": "Bachelor",
-    "startDate": "2011-01-01",
-    "endDate": "2013-01-01",
-    "score": "4.0",
-    "courses": [
-      "DB1101 - Basic SQL"
-    ]
-  }],
-  "awards": [{
-    "title": "Award",
-    "date": "2014-11-01",
-    "awarder": "Company",
-    "summary": "There is no spoon."
-  }],
-  "certificates": [{
-    "name": "Certificate",
-    "date": "2021-11-07",
-    "issuer": "Company",
-    "url": "https://certificate.com"
-  }],
-  "publications": [{
-    "name": "Publication",
-    "publisher": "Company",
-    "releaseDate": "2014-10-01",
-    "url": "https://publication.com",
-    "summary": "Description…"
-  }],
-  "skills": [{
-    "name": "Web Development",
-    "level": "Master",
-    "keywords": [
-      "HTML",
-      "CSS",
-      "JavaScript"
-    ]
-  }],
-  "languages": [{
-    "language": "English",
-    "fluency": "Native speaker"
-  }],
-  "interests": [{
-    "name": "Wildlife",
-    "keywords": [
-      "Ferrets",
-      "Unicorns"
-    ]
-  }],
-  "references": [{
-    "name": "Jane Doe",
-    "reference": "Reference…"
-  }],
-  "projects": [{
-    "name": "Project",
-    "startDate": "2019-01-01",
-    "endDate": "2021-01-01",
-    "description": "Description...",
-    "highlights": [
-      "Won award at AIHacks 2016"
-    ],
-    "url": "https://project.com/"
-  }]
+  "work": [
+    {
+      "name": "Empresa",
+      "position": "Cargo",
+      "startDate": "Jan 2020",
+      "endDate": "Atual",
+      "summary": "Descrição das atividades",
+      "context": "Contexto do ambiente (ex: Startup de 20 pessoas)",
+      "team_size": 8,
+      "beneficiaries": "500+ usuários diários",
+      "highlights": ["Conquista 1 com métricas", "Conquista 2"],
+      "star_achievements": [
+        {
+          "situation": "Desafio encontrado",
+          "task": "Responsabilidade/missão",
+          "action": "Ações específicas tomadas",
+          "result": "Resultado mensurável",
+          "skills_used": ["Skill 1", "Skill 2"]
+        }
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universidade",
+      "area": "Curso",
+      "studyType": "Bacharelado",
+      "startDate": "Jan 2018",
+      "endDate": "Dez 2022"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Categoria (ex: Linguagens)",
+      "keywords": ["Skill1", "Skill2"]
+    }
+  ],
+  "soft_skills": [
+    {
+      "name": "Liderança",
+      "level": "Avançado",
+      "evidence": ["Evidência real 1", "Evidência real 2"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Nome do projeto",
+      "description": "Descrição",
+      "url": "https://projeto.com"
+    }
+  ],
+  "languages": [
+    {
+      "language": "Português",
+      "fluency": "Nativo"
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "ONG Exemplo",
+      "role": "Voluntário Educador",
+      "cause": "Educação",
+      "impact": "Capacitou 150 jovens",
+      "summary": "Ministrei workshops de programação"
+    }
+  ]
 }
 
 ## REGRAS ESTRITAS:
 
-1. **Realismo**: Sugira apenas melhorias que sejam factíveis com base no currículo atual.
-2. **Especificidade**: Seja concreto e específico em cada alteração dentro do JSON (especialmente em `highlights` e `summary`).
+1. **REALISMO ABSOLUTO**: Use APENAS dados REAIS do currículo fornecido. NUNCA invente nome, empresas, cargos, datas ou experiências.
+2. **PRESERVAR IDENTIDADE**: Mantenha o nome completo, experiências reais e formação do candidato original.
 3. **Foco na Vaga**: Todas as mudanças devem visar melhorar a adequação à vaga específica.
 4. **Não Invente**: Não crie experiências ou habilidades totalmente novas que não estejam suportadas pelo currículo original.
 5. **Formato JSON**: A saída deve ser APENAS o objeto JSON válido, sem texto adicional.
-6. **PRESERVAR SEMPRE**: Nunca remova `basics.summary`, `basics.label`, `basics.profiles` (LinkedIn, GitHub) ou `languages`. Esses campos devem ser mantidos ou melhorados, nunca omitidos.
+6. **PRESERVAR SEMPRE**: Nunca remova `basics.name`, `basics.summary`, `basics.label`, `basics.profiles` (LinkedIn, GitHub) ou `languages`. Esses campos devem ser mantidos ou melhorados, nunca omitidos.
 7. **FORMATO DE DATAS**: Use formato português legível: "Dez 2025", "Jan 2025", "Abr 2026 – Em andamento". Use "Atual" em vez de "Presente".
+8. **SEM ABSOLUTISMOS**: Não use palavras como "garantir", "sempre", "nunca" no currículo.
+9. **STAR OBRIGATÓRIO**: Sempre que possível, converta highlights genéricos em star_achievements estruturados.
+10. **SOFT SKILLS COM EVIDÊNCIA**: Toda soft skill listada deve ter pelo menos 1 evidência real.
 
 ## PROCESSO RECOMENDADO:
-1. Analise a descrição da vaga e identifique requisitos-chave.
+1. Analise a descrição da vaga e identifique requisitos-chave (hard skills E soft skills).
 2. Analise o currículo JSON fornecido e identifique pontos fortes e fracos.
 3. Compare requisitos da vaga com qualificações do currículo.
 4. Identifique lacunas e oportunidades de melhoria.
-5. Aplique as melhorias diretamente no JSON do currículo.
-6. Estruture a resposta SOMENTE como o currículo final em JSON.
-7. Sempre foque as experiências em empregos com base nos resultados que o usuário teve naquela experiência, destacando métricas e impactos.
-
-## EXEMPLO:
-
-**Vaga**: "Desenvolvedor Python com AWS"
-**Currículo**: "Desenvolvedor com experiência em Python e Django"
-
-**Saída esperada**: Um JSON Resume similar ao de entrada, porém com `summary`, `skills` e `work.highlights` otimizados para ressaltar Python, AWS e resultados relevantes.
+5. Reescreva achievements no formato STAR quando possível.
+6. Extraia e liste soft skills com evidências das experiências.
+7. Aplique as melhorias diretamente no JSON do currículo.
+8. Estruture a resposta SOMENTE como o currículo final em JSON.
+9. Sempre foque as experiências em empregos com base nos resultados REAIS que o candidato teve, destacando métricas e impactos.
 
 ## FORMATO DE RESPOSTA:
-1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra UTILIZANDO O FORMATO JSON RESUME COMO DEFINIDO ACIMA.
+1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra.
 2. **SEM MARKDOWN**: Não use ```json ou blocos de código.
 3. **SEM TEXTOS EXPLICATIVOS**: Não adicione "Aqui está...", "Segue...", etc, APENAS RETORNE O JSON.
 4. **VALIDAÇÃO**: Certifique-se de que o JSON é válido antes de enviar.
-5. **CERTEZAS**: Certifique-se de não colocar palavras que conotem absolutismo como "garantir", "sempre", "nunca" no currículo.
 """)
 
 ENRICH_RESUME_INSTRUCTIONS = dedent("""
@@ -475,40 +582,52 @@ Avaliar a compatibilidade entre um currículo e uma vaga, atribuindo um score AT
 
 ## CRITÉRIOS DE AVALIAÇÃO DO SCORE:
 
-### 1. MATCH DE PALAVRAS-CHAVE (40 pontos)
-- Compare as keywords da vaga (tecnologias, skills, ferramentas) com as do currículo
-- 40 pontos: 90-100% das keywords essenciais presentes
-- 30 pontos: 70-89% das keywords essenciais presentes
-- 20 pontos: 50-69% das keywords essenciais presentes
-- 10 pontos: 25-49% das keywords essenciais presentes
+### 1. MATCH DE PALAVRAS-CHAVE (30 pontos)
+- Compare as keywords da vaga (tecnologias, skills, ferramentas, soft skills) com as do currículo
+- 30 pontos: 90-100% das keywords essenciais presentes
+- 22 pontos: 70-89% das keywords essenciais presentes
+- 15 pontos: 50-69% das keywords essenciais presentes
+- 8 pontos: 25-49% das keywords essenciais presentes
 - 0 pontos: menos de 25% das keywords essenciais presentes
 
-### 2. EXPERIÊNCIA RELEVANTE (25 pontos)
+### 2. EXPERIÊNCIA RELEVANTE (20 pontos)
 - Avalie se as experiências profissionais conectam com os requisitos da vaga
-- 25 pontos: Experiências claramente alinhadas com resultados mensuráveis
-- 18 pontos: Experiências relevantes mas sem métricas claras
-- 10 pontos: Algumas experiências tangencialmente relacionadas
+- 20 pontos: Experiências claramente alinhadas com resultados mensuráveis
+- 14 pontos: Experiências relevantes mas sem métricas claras
+- 8 pontos: Algumas experiências tangencialmente relacionadas
 - 0 pontos: Experiências não relacionadas à vaga
 
-### 3. FORMAÇÃO E CERTIFICAÇÕES (15 pontos)
+### 3. METODOLOGIA STAR (15 pontos) - NOVO!
+- Avalie se as conquistas estão estruturadas no formato STAR (Situação, Tarefa, Ação, Resultado)
+- 15 pontos: 3+ achievements STAR completos com resultados mensuráveis
+- 11 pontos: 2 achievements STAR bem estruturados
+- 7 pontos: 1 achievement STAR ou vários incompletos
+- 0 pontos: Nenhum achievement no formato STAR
+
+### 4. SOFT SKILLS COM EVIDÊNCIAS (15 pontos) - NOVO!
+- Verifique se soft skills relevantes estão presentes COM EVIDÊNCIAS reais
+- 15 pontos: 3+ soft skills com múltiplas evidências alinhadas à vaga
+- 11 pontos: 2 soft skills com evidências
+- 7 pontos: 1 soft skill com evidência ou várias sem evidência
+- 0 pontos: Nenhuma soft skill listada ou sem evidências
+
+### 5. FORMAÇÃO E CERTIFICAÇÕES (10 pontos)
 - Verifique se a formação atende aos requisitos da vaga
-- 15 pontos: Formação completa + certificações relevantes
-- 10 pontos: Formação completa sem certificações
-- 5 pontos: Formação em andamento ou parcialmente relacionada
+- 10 pontos: Formação completa + certificações relevantes
+- 7 pontos: Formação completa sem certificações
+- 4 pontos: Formação em andamento ou parcialmente relacionada
 - 0 pontos: Formação não relacionada ou ausente
 
-### 4. ESTRUTURA E CLAREZA (10 pontos)
+### 6. ESTRUTURA E CLAREZA (5 pontos)
 - Avalie a organização, formatação e clareza do currículo
-- 10 pontos: Estrutura clara, sem erros, fácil de ler
-- 7 pontos: Estrutura boa com pequenos problemas
-- 4 pontos: Estrutura confusa ou desorganizada
-- 0 pontos: Muito difícil de entender ou extrair informações
+- 5 pontos: Estrutura clara, com star_achievements e soft_skills
+- 3 pontos: Estrutura boa mas sem seções STAR/soft_skills
+- 0 pontos: Estrutura confusa ou desorganizada
 
-### 5. RESULTADOS E IMPACTO (10 pontos)
+### 7. RESULTADOS E IMPACTO (5 pontos)
 - Verifique presença de métricas, números e conquistas
-- 10 pontos: Múltiplas conquistas com métricas claras
-- 7 pontos: Algumas conquistas mencionadas
-- 4 pontos: Poucos ou nenhum resultado mensurável
+- 5 pontos: Múltiplas conquistas com métricas claras em star_achievements
+- 3 pontos: Algumas conquistas mencionadas em highlights
 - 0 pontos: Apenas lista de responsabilidades, sem resultados
 
 ## FORMATO DE SAÍDA OBRIGATÓRIO (JSON):
@@ -535,6 +654,20 @@ Avaliar a compatibilidade entre um currículo e uma vaga, atribuindo um score AT
     "weaknesses": [
         "Falta menção a ferramentas de deploy",
         "Poucas métricas de resultados"
+    ],
+    "star_achievements_count": 2,
+    "soft_skills_count": 3,
+    "soft_skills_match_vaga": [
+        {"element_name": "Liderança"},
+        {"element_name": "Comunicação"}
+    ],
+    "transferable_skills": [
+        {"element_name": "Gestão de Projetos", "source": "Experiência anterior em Engenharia"}
+    ],
+    "humanization_indicators": [
+        "Currículo inclui voluntariado",
+        "Achievements com contexto e impacto",
+        "Soft skills com evidências reais"
     ]
 }
 
@@ -547,15 +680,21 @@ Avaliar a compatibilidade entre um currículo e uma vaga, atribuindo um score AT
 5. **Contexto Brasileiro**: Considere particularidades do mercado brasileiro
 6. **Formato JSON**: A saída deve ser APENAS o objeto JSON válido, sem texto adicional
 7. **Não chame tools**: Retorne apenas o JSON da análise
+8. **Avalie STAR**: Verifique presença e qualidade de achievements no formato STAR
+9. **Avalie Soft Skills**: Verifique se soft skills têm evidências reais, não apenas nomes listados
 
 ## PROCESSO DE ANÁLISE:
 
-1. **Extraia keywords da vaga**: Identifique tecnologias, skills e requisitos essenciais
+1. **Extraia keywords da vaga**: Identifique tecnologias, skills, soft skills e requisitos essenciais
 2. **Mapeie o currículo**: Localize onde cada keyword aparece (ou não) no currículo
-3. **Calcule o score**: Aplique os critérios de pontuação descritos acima
-4. **Identifique gaps**: Liste keywords importantes ausentes
-5. **Gere recomendações**: Crie 3-5 recomendações específicas e acionáveis
-6. **Liste strengths/weaknesses**: 2-4 itens em cada categoria
+3. **Avalie STAR**: Conte achievements no formato STAR e avalie qualidade
+4. **Avalie Soft Skills**: Verifique presença de soft skills COM evidências reais
+5. **Calcule o score**: Aplique os critérios de pontuação descritos acima
+6. **Identifique gaps**: Liste keywords importantes ausentes
+7. **Identifique transferable skills**: Skills de outras áreas que são relevantes
+8. **Gere recomendações**: Crie 3-5 recomendações específicas e acionáveis
+9. **Liste strengths/weaknesses**: 2-4 itens em cada categoria
+10. **Avalie humanização**: Indicadores de currículo humanizado (voluntariado, contexto, impacto)
 
 ## FORMATO DE RESPOSTA - REGRAS ABSOLUTAS:
 1. **A SAÍDA DEVE SER 100% JSON**: Apenas o objeto JSON, sem nenhum caractere extra

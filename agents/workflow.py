@@ -5,11 +5,11 @@ from textwrap import dedent
 from agno.db.sqlite import SqliteDb
 from agno.workflow import Condition, Parallel, Step, Workflow
 from agno.workflow.types import StepInput, StepOutput, OnReject, OnError
-from openinference.instrumentation.agno import AgnoInstrumentor
 from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor # Use Batch instead of Simple
+from openinference.instrumentation.agno import AgnoInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from agents.models import (
     vacancy_agent,
     resume_agent,
@@ -67,17 +67,18 @@ def prepare_enrich_input(step_input: StepInput) -> StepOutput:
 
 def combine_for_upgrade(step_input: StepInput) -> StepOutput:
     """Combina todas as análises para o agente de upgrade.
-    
+
     Verifica a decisão do usuário antes de prosseguir com a otimização.
+    Extrai corretamente os dados dos objetos Pydantic retornados pelos agentes.
     """
-    
+
     logger = logging.getLogger(__name__)
     data = step_input.additional_data or {}
 
     # Obtém resultado da confirmação do usuário
     user_confirmation_raw = step_input.get_step_content("User Confirmation") or ""
     user_proceeds = True  # Default para True se não encontrado
-    
+
     try:
         if user_confirmation_raw:
             # Tenta parsear como JSON (novo formato)
@@ -100,17 +101,33 @@ def combine_for_upgrade(step_input: StepInput) -> StepOutput:
         )
 
     # Prossegue com combinação normal
-    vacancy_analysis = step_input.get_step_content("Analyze Vacancy") or ""
-    resume_analysis = step_input.get_step_content("Analyze Resume") or ""
-    enriched_resume = step_input.get_step_content("Enrich Resume") or ""
+    # Extrai análises dos agentes (podem ser objetos Pydantic ou strings)
+    vacancy_analysis_raw = step_input.get_step_content("Analyze Vacancy") or ""
+    resume_analysis_raw = step_input.get_step_content("Analyze Resume") or ""
+    enriched_resume_raw = step_input.get_step_content("Enrich Resume") or ""
     ats_analysis_output = step_input.get_step_content("ATS Analysis") or ""
 
-    if not enriched_resume:
-        enriched_resume = "(Nenhuma informação adicional fornecida)"
+    # Converte para string se necessário
+    vacancy_analysis = str(vacancy_analysis_raw) if vacancy_analysis_raw else ""
+    resume_analysis = str(resume_analysis_raw) if resume_analysis_raw else ""
+    enriched_resume = str(enriched_resume_raw) if enriched_resume_raw else ""
+    ats_analysis = str(ats_analysis_output) if ats_analysis_output else ""
+
+    # Logging para debug
+    logger.info(f"Vacancy analysis length: {len(vacancy_analysis)}")
+    logger.info(f"Resume analysis length: {len(resume_analysis)}")
+    logger.info(f"Enriched resume length: {len(enriched_resume)}")
+    logger.info(f"ATS analysis length: {len(ats_analysis)}")
+
+    # Usa o currículo enriquecido se disponível, senão usa o original
+    resume_base = enriched_resume if enriched_resume and enriched_resume != "None" else data.get('curriculo', '')
+
+    if not resume_base:
+        resume_base = "(Nenhuma informação de currículo fornecida)"
 
     combined = dedent(f"""
-    ## CURRÍCULO ORIGINAL:
-    {data.get('curriculo', '')}
+    ## CURRÍCULO (ORIGINAL OU ENRIQUECIDO):
+    {resume_base}
 
     ## ANÁLISE DA VAGA (Requisitos Identificados):
     {vacancy_analysis}
@@ -118,23 +135,24 @@ def combine_for_upgrade(step_input: StepInput) -> StepOutput:
     ## ANÁLISE DO CURRÍCULO ATUAL:
     {resume_analysis}
 
-    ## CURRÍCULO ENRIQUECIDO COM INFORMAÇÕES ADICIONAIS:
-    {enriched_resume}
-
     ## ANÁLISE ATS (Score e Recomendações):
-    {ats_analysis_output}
+    {ats_analysis}
 
     ## DECISÃO DO USUÁRIO (HITL):
     Prosseguir com otimização
 
     ---
     TAREFA: Com base nas análises acima, crie um currículo otimizado no formato JSON Resume.
+    
+    IMPORTANTE:
+    - Use APENAS os dados REAIS do currículo fornecido acima (NÃO invente dados)
+    - Mantenha o nome, experiências, formação e informações do candidato original
     - Destaque as qualificações alinhadas aos requisitos da vaga
     - Use palavras-chave identificadas na análise da vaga
     - Foque em resultados e conquistas mensuráveis
     - Considere as recomendações da análise ATS para melhorar o score
     - Incorpore o feedback adicional do usuário quando aplicável
-    - Mantenha a estrutura completa do JSON Resume (incluindo campos como basics.profiles, volunteer, projects, etc.)
+    - Mantenha a estrutura completa do JSON Resume (basics, work, education, skills, projects, languages, profiles)
     - Retorne APENAS o JSON válido
     """)
     return StepOutput(content=combined)
@@ -221,18 +239,21 @@ def process_user_confirmation(step_input: StepInput) -> StepOutput:
         content=json.dumps(decision_data, ensure_ascii=False)
     )
 
-
+endpoint = "https://api.smith.langchain.com/otel/v1/traces"
 headers = {
     "x-api-key": os.getenv("LANGSMITH_API_KEY"),
-    "Langsmith-Project": os.getenv("LANGSMITH_PROJECT"),
+    "Langsmith-Project": os.getenv("LANGSMITH_PROJECT")
 }
 
-# Configure the tracer provider
 tracer_provider = TracerProvider()
+
+# 3. Use BatchSpanProcessor (Documentation recommended for production/complex workflows)
 tracer_provider.add_span_processor(
-    SimpleSpanProcessor(OTLPSpanExporter(endpoint=os.environ["LANGSMITH_ENDPOINT"], headers=headers))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
 )
 trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+
+# 4. Instrument Agno
 AgnoInstrumentor().instrument()
 
 resume_optimizer_workflow = Workflow(

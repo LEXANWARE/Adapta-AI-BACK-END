@@ -26,6 +26,29 @@ class Profile(BaseModel):
     username: Optional[str] = Field(None, description="Usuário na rede social")
     url: Optional[str] = Field(None, description="URL do perfil")
 
+
+class StarAchievement(BaseModel):
+    """
+    Estrutura para conquistas usando metodologia STAR:
+    Situation (Situação), Task (Tarefa), Action (Ação), Result (Resultado)
+    """
+    situation: str = Field(..., description="Contexto ou desafio encontrado")
+    task: str = Field(..., description="Responsabilidade ou missão diante da situação")
+    action: str = Field(..., description="Ações específicas que foram tomadas")
+    result: str = Field(..., description="Resultado alcançado (preferencialmente mensurável)")
+    skills_used: List[str] = Field(default_factory=list, description="Competências aplicadas (ex: Liderança, Negociação)")
+
+
+class SoftSkill(BaseModel):
+    """
+    Soft skill com evidências reais extraídas das experiências.
+    Ex: Liderança comprovada por 'Liderei time de 8 pessoas no projeto X'
+    """
+    name: str = Field(..., description="Nome da soft skill (ex: Liderança, Comunicação, Resolução de Problemas)")
+    level: Optional[str] = Field(None, description="Nível de proficiência (ex: Avançado, Intermediário, Básico)")
+    evidence: List[str] = Field(default_factory=list, description="Evidências reais que comprovam esta soft skill")
+
+
 class Work(BaseModel):
     name: str = Field(..., description="Nome da empresa")
     position: str = Field(..., description="Cargo ocupado")
@@ -34,6 +57,13 @@ class Work(BaseModel):
     endDate: Optional[str] = Field(None, description="Data de fim ou 'Presente'")
     summary: Optional[str] = Field(None, description="Descrição das atividades")
     highlights: List[str] = Field(default_factory=list, description="Lista de conquistas/pontos chave")
+    
+    # Campos de humanização e contexto
+    context: Optional[str] = Field(None, description="Contexto do ambiente de trabalho (ex: 'Startup de 20 pessoas', 'Hospital público de grande porte')")
+    team_size: Optional[int] = Field(None, description="Tamanho do time liderado ou com que trabalhou")
+    beneficiaries: Optional[str] = Field(None, description="Quem foi impactado pelo trabalho (ex: '500+ pacientes', '2000+ alunos')")
+    star_achievements: List[StarAchievement] = Field(default_factory=list, description="Conquistas estruturadas no formato STAR")
+
 
 class Education(BaseModel):
     institution: str = Field(..., description="Instituição de ensino")
@@ -42,6 +72,10 @@ class Education(BaseModel):
     url: Optional[str] = Field(None, description="URL da instituição")
     startDate: Optional[str] = None
     endDate: Optional[str] = None
+    
+    # Campos adicionais para humanização
+    thesis_title: Optional[str] = Field(None, description="Título da tese ou TCC")
+    honors: List[str] = Field(default_factory=list, description="Honrarias (ex: 'Magna cum laude', 'Primeira turma')")
 
 
 class Award(BaseModel):
@@ -50,9 +84,11 @@ class Award(BaseModel):
     awarder: Optional[str] = Field(None, description="Organização que concedeu o prêmio")
     summary: Optional[str] = Field(None, description="Resumo ou contexto do prêmio")
 
+
 class Skill(BaseModel):
     name: str = Field(..., description="Categoria da habilidade (ex: Linguagens)")
     keywords: List[str] = Field(default_factory=list, description="Lista de skills (ex: Python, Java)")
+
 
 class Project(BaseModel):
     name: str = Field(..., description="Nome do projeto")
@@ -65,6 +101,8 @@ class Certificate(BaseModel):
     date: Optional[str] = Field(None, description="Data da certificação")
     issuer: Optional[str] = Field(None, description="Entidade emissora")
     url: Optional[str] = Field(None, description="URL da certificação")
+    credential_id: Optional[str] = Field(None, description="ID ou código da credencial")
+    skills_validated: List[str] = Field(default_factory=list, description="Skills validadas por esta certificação")
 
 
 class Publication(BaseModel):
@@ -73,6 +111,7 @@ class Publication(BaseModel):
     releaseDate: Optional[str] = Field(None, description="Data de publicação")
     url: Optional[str] = Field(None, description="URL da publicação")
     summary: Optional[str] = Field(None, description="Resumo da publicação")
+
 
 class Language(BaseModel):
     language: str = Field(..., description="Idioma")
@@ -89,6 +128,17 @@ class Reference(BaseModel):
     reference: Optional[str] = Field(None, description="Texto da recomendação ou contato")
 
 
+class VolunteerExperience(BaseModel):
+    """Experiência de voluntariado - crucial para humanização do currículo"""
+    organization: str = Field(..., description="Nome da organização")
+    role: str = Field(..., description="Papel ou cargo ocupado")
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    cause: Optional[str] = Field(None, description="Causa (ex: 'Educação', 'Saúde mental', 'Meio ambiente')")
+    impact: Optional[str] = Field(None, description="Impacto gerado (ex: 'Capacitou 200 jovens em programação')")
+    summary: Optional[str] = Field(None, description="Descrição das atividades")
+
+
 class ResumeScheme(BaseModel):
     model_config = ConfigDict(extra='ignore')
     basics: Optional[Basics] = None
@@ -103,3 +153,9 @@ class ResumeScheme(BaseModel):
     publications: List[Publication] = Field(default_factory=list)
     interests: List[Interest] = Field(default_factory=list)
     references: List[Reference] = Field(default_factory=list)
+    
+    # Novos campos para humanização e metodologia STAR
+    soft_skills: List[SoftSkill] = Field(default_factory=list, description="Soft skills com evidências reais")
+    volunteer: List[VolunteerExperience] = Field(default_factory=list, description="Experiências de voluntariado")
+    career_objective: Optional[str] = Field(None, description="Objetivo de carreira ou transição desejada")
+    core_values: List[str] = Field(default_factory=list, description="Valores centrais (ex: 'Diversidade', 'Sustentabilidade', 'Inovação social')")

@@ -19,16 +19,6 @@ from agents.instructions import (
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=Path(ENV_PATH))
 
-# Configuração do LangSmith (Observabilidade)
-if os.getenv("LANGSMITH_TRACING", "").lower() == "true":
-    os.environ["LANGSMITH_TRACING"] = "true"
-    os.environ["LANGSMITH_ENDPOINT"] = os.getenv(
-        "LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"
-    )
-    os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
-    os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT", "AdaptaAi")
-
-
 model_instance = Gemini(
     id="gemini-2.5-flash",
     api_key=os.getenv("GOOGLE_API_KEY"),
@@ -43,6 +33,7 @@ vacancy_agent = Agent(
     model=model_instance,
     instructions=VACANCY_AGENT_INSTRUCTIONS,
     output_schema=VacancyKeyThemes,
+    pre_hooks=[pi_guardrail],
     debug_mode=True,
 )
 
@@ -52,6 +43,7 @@ resume_agent = Agent(
     model=model_instance,
     instructions=RESUME_AGENT_INSTRUCTIONS,
     output_schema=ResumeScheme,
+    pre_hooks=[pi_guardrail],
     debug_mode=True,
 )
 
@@ -70,6 +62,7 @@ resume_enricher_agent = Agent(
     model=model_instance,
     instructions=ENRICH_RESUME_INSTRUCTIONS,
     output_schema=ResumeScheme,
+    pre_hooks=[pi_guardrail],
     debug_mode=True,
 )
 
