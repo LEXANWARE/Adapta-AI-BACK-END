@@ -1,17 +1,14 @@
 import json
-import logging
 import traceback
-from agents.workflow import resume_optimizer_workflow
-from agents.utils.hitl_utils import (
-    get_workflow_status,
-    extract_workflow_result,
+import logging
+from agents.workflow import (
+    ResumeOptimizerWorkflow, 
+    ResumeQualityWorkflow, 
+    AtsCheckWorkflow
 )
 
-# Configura logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configura logging simplificado
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 curriculo_texto = """LUCAS MELO DE SOUZA
@@ -151,154 +148,76 @@ Programa de Nutrição;
 Programa de Gestantes;
 Licença Maternidade e Paternidade Estendida – empresa Cidadã."""
 
-def handle_hitl(run_response):
-    """Função para lidar com HITL no workflow."""
-    if hasattr(run_response, 'steps_requiring_user_input') and run_response.steps_requiring_user_input:
-        print("\n" + "="*80)
-        print("🔴 WORKFLOW PAUSADO - Aguardando input do usuário")
-        print("="*80)
 
-        for requirement in run_response.steps_requiring_user_input:
-            print(f"\n📌 Step: {requirement.step_name}")
-            print(f"📝 Mensagem: {requirement.user_input_message}")
-            print("-" * 40)
+def test_full_pipeline():
+    """
+    Executa os três workflows de forma independente e estruturada.
+    """
+    
+    # 1. TESTE DE QUALIDADE (Auditores Humanos)
+    print("\n" + "="*50)
+    print("🔍 INICIANDO AUDITORIA DE QUALIDADE")
+    print("="*50)
+    
+    quality_wf = ResumeQualityWorkflow()
+    q_response = quality_wf.run(content=curriculo_texto)
+    
+    if q_response and q_response.output:
+        q_data = q_response.output
+        print(f"✅ Score de Apresentação: {q_data.presentation_score}/100")
+        print(f"📝 Feedback: {q_data.presentation_feedback}")
+        
+        if q_data.language_issues:
+            print("\nErros Linguísticos Encontrados:")
+            for issue in q_data.language_issues:
+                print(f"  - [{issue.category}]: '{issue.original_text}' -> {issue.suggestion}")
+    
+    # 2. TESTE DE OTIMIZAÇÃO (Melhoria Estratégica)
+    print("\n" + "="*50)
+    print("🚀 INICIANDO OTIMIZAÇÃO DE CURRÍCULO")
+    print("="*50)
+    
+    opt_wf = ResumeOptimizerWorkflow()
 
-            # Coleta os inputs conforme schema
-            user_data = {}
-            for field in requirement.user_input_schema or []:
-                field_name = field.name if hasattr(field, 'name') else field.get('name')
-                field_type = field.field_type if hasattr(field, 'field_type') else field.get('field_type')
-                description = field.description if hasattr(field, 'description') else field.get('description')
+    # Passamos os inputs via additional_data para que os steps acessem
+    opt_response = opt_wf.run(additional_data={
+        "vaga": descricao_vaga,
+        "curriculo": curriculo_texto
+    })
+    
+    if opt_response and opt_response.output:
+        # Aqui opt_response.output já é um objeto ResumeScheme
+        optimized_resume = opt_response.output
+        print(f"✅ Currículo Otimizado Gerado para: {optimized_resume.basics.name}")
+        print(f"📈 Resumo Proposto: {optimized_resume.basics.summary[:100]}...")
+        
+        # Salva o resultado para conferência
+        with open("curriculo_otimizado.json", "w", encoding="utf-8") as f:
+            json.dump(optimized_resume.model_dump(), f, indent=4, ensure_ascii=False)
+            print("\n💾 Arquivo 'curriculo_otimizado.json' salvo com sucesso.")
 
-                if field_type == "bool":
-                    # Para teste automatizado, define como True
-                    user_data[field_name] = True
-                    print(f"✅ {description}: Sim (automático)")
-                else:
-                    user_data[field_name] = ""
-                    print(f"ℹ️ {description}: (vazio)")
-
-            # Resolve o requirement usando set_user_input
-            try:
-                if hasattr(requirement, 'set_user_input'):
-                    requirement.set_user_input(**user_data)
-                    print(f"\n✅ Input registrado: {user_data}")
-                    logger.info(f"Requirement resolvido: step_name={requirement.step_name}, is_resolved={requirement.is_resolved}")
-                else:
-                    print(f"\n❌ Requirement não tem método set_user_input")
-                    return False
-            except Exception as e:
-                print(f"\n❌ Erro ao registrar input: {e}")
-                logger.error(f"Erro ao resolver requirement: {e}")
-                return False
-
-        print("\n⏩ Retomando execução do workflow...")
-        return True
-    return False
-
-def extract_final_result(run_response):
-    """Extrai o resultado final do workflow."""
-    return extract_workflow_result(run_response)
+    # 3. TESTE ATS (Score de Robôs)
+    print("\n" + "="*50)
+    print("📊 ANÁLISE DE COMPATIBILIDADE ATS")
+    print("="*50)
+    
+    ats_wf = AtsCheckWorkflow()
+    # Analisamos o currículo original contra a vaga
+    ats_response = ats_wf.run(content=f"VAGA: {descricao_vaga}\nCURRÍCULO: {curriculo_texto}")
+    
+    if ats_response and ats_response.output:
+        ats_data = ats_response.output
+        print(f"🤖 Score ATS: {ats_data.ats_score}/100")
+        print(f"✅ Keywords Encontradas: {len(ats_data.matched_keywords)}")
+        print(f"❌ Keywords Ausentes: {len(ats_data.missing_keywords)}")
+        
+        print("\nTop Recomendações ATS:")
+        for rec in ats_data.recommendations[:3]:
+            print(f"  - {rec}")
 
 if __name__ == "__main__":
-    print("="*80)
-    print("🚀 INICIANDO WORKFLOW DE OTIMIZAÇÃO DE CURRÍCULO")
-    print("="*80)
-    
-    logger.info("Iniciando teste do workflow HITL")
-
     try:
-        # Executa o workflow
-        logger.info("Executando workflow...")
-        run_response = resume_optimizer_workflow.run(
-            input="Otimize meu currículo para esta vaga",
-            additional_data={
-                'curriculo': curriculo_texto,
-                'vaga': descricao_vaga,
-                'info_adicional': input_usuario_enrich
-            }
-        )
-        
-        logger.info(f"Workflow executado: session_id={getattr(run_response, 'session_id', 'N/A')}")
-
-        # Loop para lidar com múltiplas pausas (se houver)
-        iteration = 0
-        while True:
-            iteration += 1
-            status = get_workflow_status(run_response)
-            print(f"\n📊 Status do workflow (iteração {iteration}): {status}")
-            logger.info(f"Iteração {iteration}: status={status}")
-
-            if status != "paused":
-                logger.info(f"Workflow não está mais pausado, saindo do loop")
-                break
-
-            # Processa HITL
-            if handle_hitl(run_response):
-                # Continua execução após HITL
-                logger.info("Continuando workflow com step_requirements...")
-                step_requirements = getattr(run_response, 'step_requirements', None) or getattr(run_response, 'steps_requiring_user_input', None)
-                
-                run_response = resume_optimizer_workflow.continue_run(
-                    run_response=run_response,
-                    step_requirements=step_requirements,
-                )
-                logger.info("Workflow continuado")
-            else:
-                logger.warning("HITL falhou, interrompendo execução")
-                break
-
-        # Exibe resultado final
-        print("\n" + "="*80)
-        print("✅ WORKFLOW CONCLUÍDO")
-        print("="*80)
-
-        final_content = extract_final_result(run_response)
-
-        if final_content:
-            print("\n📄 RESULTADO FINAL:")
-            print("-" * 40)
-            content_str = str(final_content)
-
-            # Tenta salvar o resultado em arquivo
-            try:
-                output_file = "currículo_otimizado.json"
-                with open(output_file, 'w', encoding='utf-8') as f:
-                    if isinstance(final_content, dict):
-                        json.dump(final_content, f, ensure_ascii=False, indent=2)
-                    else:
-                        f.write(content_str)
-                print(f"\n💾 Resultado salvo em: {output_file}")
-                logger.info(f"Resultado salvo em {output_file}")
-            except Exception as e:
-                print(f"\n⚠️  Não foi possível salvar arquivo: {e}")
-                logger.error(f"Erro ao salvar arquivo: {e}")
-        else:
-            print("\n⚠️  Nenhum conteúdo retornado pelo workflow")
-            logger.warning("Nenhum conteúdo retornado pelo workflow")
-            
-        # Exibe análise ATS se disponível
-        step_outputs = getattr(run_response, 'step_outputs', {})
-        if step_outputs and isinstance(step_outputs, dict):
-            ats_output = step_outputs.get("ATS Analysis")
-            if ats_output:
-                print("\n📊 ANÁLISE ATS:")
-                print("-" * 40)
-                try:
-                    if hasattr(ats_output, 'model_dump'):
-                        ats_data = ats_output.model_dump()
-                    elif isinstance(ats_output, dict):
-                        ats_data = ats_output
-                    else:
-                        ats_data = json.loads(str(ats_output))
-                    
-                    print(f"Score: {ats_data.get('ats_score', 'N/A')}/100")
-                    logger.info(f"ATS Score: {ats_data.get('ats_score', 'N/A')}/100")
-                except Exception as e:
-                    print(f"Erro ao extrair análise ATS: {e}")
-                    logger.error(f"Erro ao extrair ATS: {e}")
-
+        test_full_pipeline()
     except Exception as e:
-        print(f"\n❌ ERRO: {e}")
-        logger.error(f"Erro no teste: {e}", exc_info=True)
+        logger.error(f"Erro fatal no teste: {str(e)}")
         traceback.print_exc()

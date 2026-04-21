@@ -7,12 +7,15 @@ from agno.guardrails import PromptInjectionGuardrail
 from agents.schemas.ats import AtsAnalysis
 from agents.schemas.resume import ResumeScheme
 from agents.schemas.vacancy import VacancyKeyThemes
+from agents.schemas.quality import ResumeQualityAnalysis
+from agents.schemas.ats import AtsAnalysis
 from agents.instructions import (
     VACANCY_AGENT_INSTRUCTIONS,
     RESUME_AGENT_INSTRUCTIONS,
     UPGRADE_RESUME_AGENT_INSTRUCTIONS,
     ENRICH_RESUME_INSTRUCTIONS,
     ATS_AGENT_INSTRUCTIONS,
+    QUALITY_AGENT_INSTRUCTIONS
 )
 
 # Carrega variáveis de ambiente
@@ -72,5 +75,15 @@ ats_agent = Agent(
     model=model_instance,
     instructions=ATS_AGENT_INSTRUCTIONS,
     output_schema=AtsAnalysis,
+    debug_mode=True,
+)
+
+quality_agent = Agent(
+    name="quality_agent",
+    description="Agente responsável pela auditoria linguística e de apresentação do currículo",
+    model=model_instance,
+    instructions=QUALITY_AGENT_INSTRUCTIONS,
+    output_schema=ResumeQualityAnalysis,
+    markdown=False,
     debug_mode=True,
 )
