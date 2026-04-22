@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AdaptaAi API",
-    description="API para otimização de currículos com análise ATS e Human-in-the-Loop (HITL)",
+    description="API para otimização de currículos com análise ATS e Quality",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -37,7 +37,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(
     resumes.router,
     prefix="/api/v1/resumes",
-    tags=["currículos", "workflow HITL"]
+    tags=["currículos"]
 )
 
 @app.get("/")
