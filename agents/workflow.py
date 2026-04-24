@@ -1,5 +1,6 @@
 import logging
-from agno.workflow import Step, Workflow
+from typing import Optional, Any, Dict
+from agno.workflow import Step, Workflow, WorkflowRunOutput
 from agents.models import (
     vacancy_agent,
     resume_agent,
@@ -38,6 +39,46 @@ class ResumeOptimizerWorkflow(Workflow):
             **kwargs
         )
 
+    def run(self, additional_data: Dict[str, Any]) -> WorkflowRunOutput:
+        """
+        Executa o workflow garantindo a passagem de dados entre agentes e 
+        mantendo a compatibilidade com o service através de step_outputs.
+        """
+        vaga = additional_data.get("vaga")
+        curriculo = additional_data.get("curriculo")
+        info_adicional = additional_data.get("info_adicional", "")
+
+        logger.info("Iniciando Workflow de Otimização")
+
+        # 1. Parse da Vaga
+        vacancy_res = self.steps[0].run(content=vaga)
+
+        # 2. Parse do Currículo
+        resume_res = self.steps[1].run(content=curriculo)
+
+        # 3. Geração do Currículo Otimizado
+        upgrade_input = f"""
+        CURRÍCULO ORIGINAL (ESTRUTURADO):
+        {resume_res.content}
+
+        ANÁLISE DA VAGA:
+        {vacancy_res.content}
+
+        INFORMAÇÕES ADICIONAIS DO CANDIDATO:
+        {info_adicional}
+        """
+
+        final_res = self.steps[2].run(content=upgrade_input)
+
+        # Retornamos no formato esperado pelo WorkflowService
+        return WorkflowRunOutput(
+            output=final_res.content,
+            step_outputs={
+                "Parse Vacancy": vacancy_res.content,
+                "Parse Resume": resume_res.content,
+                "Generate Optimized Resume": final_res.content
+            }
+        )
 class ResumeQualityWorkflow(Workflow):
     """
     Workflow independente para análise técnica, gramatical e de apresentação.
@@ -55,6 +96,10 @@ class ResumeQualityWorkflow(Workflow):
             **kwargs
         )
 
+    def run(self, content: str) -> WorkflowRunOutput:
+        res = self.steps[0].run(content=content)
+        return WorkflowRunOutput(output=res.content)
+
 class AtsCheckWorkflow(Workflow):
     """
     Workflow independente para cálculo de score de robôs e match de keywords.
@@ -71,3 +116,7 @@ class AtsCheckWorkflow(Workflow):
             ],
             **kwargs
         )
+
+    def run(self, content: str) -> WorkflowRunOutput:
+        res = self.steps[0].run(content=content)
+        return WorkflowRunOutput(output=res.content)
