@@ -1,6 +1,7 @@
 import logging
 import json
 from typing import Optional, Dict, Any
+from langsmith import traceable
 from agno.run.workflow import WorkflowRunOutput
 from agents.workflow import (
     ResumeOptimizerWorkflow, 
@@ -22,6 +23,7 @@ class WorkflowService:
         self.quality_wf = ResumeQualityWorkflow()
         self.ats_wf = AtsCheckWorkflow()
 
+    @traceable(run_type="chain", name="Optimize Resume Service")
     def optimize_resume(
         self, 
         vaga: str, 
@@ -68,12 +70,13 @@ class WorkflowService:
                 optimized_resume = output.model_dump() if hasattr(output, 'model_dump') else output
         
         return {
-            "optimized_resume": optimized_resume or (response.output.model_dump() if response.output else None),
+            "optimized_resume": optimized_resume or (response.content.model_dump() if response.content else None),
             "vacancy_analysis": vacancy_analysis,
             "parsed_original": parsed_original,
             "raw_response": response
         }
 
+    @traceable(run_type="chain", name="Analyze Quality Service")
     def analyze_quality(self, curriculo: str) -> ResumeQualityAnalysis:
         """
         Executa auditoria de qualidade (gramática, branding, estrutura).
@@ -83,8 +86,9 @@ class WorkflowService:
         """
         logger.info("Executando auditoria de qualidade.")
         response = self.quality_wf.run(content=curriculo)
-        return response.output
+        return response.content
 
+    @traceable(run_type="chain", name="Check ATS Service")
     def check_ats(self, vaga: str, curriculo: str) -> AtsAnalysis:
         """
         Calcula score ATS e compatibilidade entre currículo e vaga.
@@ -96,7 +100,7 @@ class WorkflowService:
         response = self.ats_wf.run(
             content=f"VAGA:\n{vaga}\n\nCURRÍCULO:\n{curriculo}"
         )
-        return response.output
+        return response.content
 
     def full_pipeline(
         self, 

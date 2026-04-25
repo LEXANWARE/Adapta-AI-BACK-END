@@ -1,6 +1,7 @@
 import logging
-from typing import Optional, Any, Dict
-from agno.workflow import Step, Workflow, WorkflowRunOutput
+from typing import Any, Dict
+from agno.workflow import Step, Workflow, StepOutput
+from langsmith import traceable
 from agents.models import (
     vacancy_agent,
     resume_agent,
@@ -39,10 +40,10 @@ class ResumeOptimizerWorkflow(Workflow):
             **kwargs
         )
 
-    def run(self, additional_data: Dict[str, Any]) -> WorkflowRunOutput:
+    @traceable(run_type="chain", name="Resume Optimizer Workflow")
+    def run(self, additional_data: Dict[str, Any]) -> StepOutput:
         """
-        Executa o workflow garantindo a passagem de dados entre agentes e 
-        mantendo a compatibilidade com o service através de step_outputs.
+        Executa o workflow utilizando run_step para processar cada etapa.
         """
         vaga = additional_data.get("vaga")
         curriculo = additional_data.get("curriculo")
@@ -50,11 +51,11 @@ class ResumeOptimizerWorkflow(Workflow):
 
         logger.info("Iniciando Workflow de Otimização")
 
-        # 1. Parse da Vaga
-        vacancy_res = self.steps[0].run(content=vaga)
+        # 1. Parse da Vaga - Correção: usa self.steps[0].agent.run
+        vacancy_res = self.steps[0].agent.run(input=vaga)
 
-        # 2. Parse do Currículo
-        resume_res = self.steps[1].run(content=curriculo)
+        # 2. Parse do Currículo - Correção: usa self.steps[1].agent.run
+        resume_res = self.steps[1].agent.run(input=curriculo)
 
         # 3. Geração do Currículo Otimizado
         upgrade_input = f"""
@@ -68,17 +69,17 @@ class ResumeOptimizerWorkflow(Workflow):
         {info_adicional}
         """
 
-        final_res = self.steps[2].run(content=upgrade_input)
+        # Correção: usa self.steps[2].agent.run
+        final_res = self.steps[2].agent.run(input=upgrade_input)
 
-        # Retornamos no formato esperado pelo WorkflowService
-        return WorkflowRunOutput(
-            output=final_res.content,
-            step_outputs={
-                "Parse Vacancy": vacancy_res.content,
-                "Parse Resume": resume_res.content,
-                "Generate Optimized Resume": final_res.content
-            }
-        )
+        result = StepOutput(content=final_res.content)
+        result.step_outputs = {
+            "Parse Vacancy": vacancy_res.content,
+            "Parse Resume": resume_res.content,
+            "Generate Optimized Resume": final_res.content
+        }
+        return result
+
 class ResumeQualityWorkflow(Workflow):
     """
     Workflow independente para análise técnica, gramatical e de apresentação.
@@ -96,9 +97,11 @@ class ResumeQualityWorkflow(Workflow):
             **kwargs
         )
 
-    def run(self, content: str) -> WorkflowRunOutput:
-        res = self.steps[0].run(content=content)
-        return WorkflowRunOutput(output=res.content)
+    @traceable(run_type="chain", name="Resume Quality Workflow")
+    def run(self, content: str) -> StepOutput:
+        # Correção: usa self.steps[0].agent.run
+        res = self.steps[0].agent.run(input=content)
+        return StepOutput(content=res.content)
 
 class AtsCheckWorkflow(Workflow):
     """
@@ -117,6 +120,8 @@ class AtsCheckWorkflow(Workflow):
             **kwargs
         )
 
-    def run(self, content: str) -> WorkflowRunOutput:
-        res = self.steps[0].run(content=content)
-        return WorkflowRunOutput(output=res.content)
+    @traceable(run_type="chain", name="ATS Check Workflow")
+    def run(self, content: str) -> StepOutput:
+        # Correção: usa self.steps[0].agent.run
+        res = self.steps[0].agent.run(input=content)
+        return StepOutput(content=res.content)

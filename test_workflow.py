@@ -162,8 +162,8 @@ def test_full_pipeline():
     quality_wf = ResumeQualityWorkflow()
     q_response = quality_wf.run(content=curriculo_texto)
     
-    if q_response and q_response.output:
-        q_data = q_response.output
+    if q_response and q_response.content:
+        q_data = q_response.content
         print(f"✅ Score de Apresentação: {q_data.presentation_score}/100")
         print(f"📝 Feedback: {q_data.presentation_feedback}")
         
@@ -182,12 +182,13 @@ def test_full_pipeline():
     # Passamos os inputs via additional_data para que os steps acessem
     opt_response = opt_wf.run(additional_data={
         "vaga": descricao_vaga,
-        "curriculo": curriculo_texto
+        "curriculo": curriculo_texto,
+        "info_adicional": input_usuario_enrich
     })
     
-    if opt_response and opt_response.output:
-        # Aqui opt_response.output já é um objeto ResumeScheme
-        optimized_resume = opt_response.output
+    if opt_response and opt_response.content:
+        # Aqui opt_response.content já é um objeto ResumeScheme
+        optimized_resume = opt_response.content
         print(f"✅ Currículo Otimizado Gerado para: {optimized_resume.basics.name}")
         print(f"📈 Resumo Proposto: {optimized_resume.basics.summary[:100]}...")
         
@@ -205,8 +206,8 @@ def test_full_pipeline():
     # Analisamos o currículo original contra a vaga
     ats_response = ats_wf.run(content=f"VAGA: {descricao_vaga}\nCURRÍCULO: {curriculo_texto}")
     
-    if ats_response and ats_response.output:
-        ats_data = ats_response.output
+    if ats_response and ats_response.content:
+        ats_data = ats_response.content
         print(f"🤖 Score ATS: {ats_data.ats_score}/100")
         print(f"✅ Keywords Encontradas: {len(ats_data.matched_keywords)}")
         print(f"❌ Keywords Ausentes: {len(ats_data.missing_keywords)}")
