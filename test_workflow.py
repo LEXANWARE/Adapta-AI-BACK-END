@@ -171,6 +171,11 @@ def test_full_pipeline():
             print("\nErros Linguísticos Encontrados:")
             for issue in q_data.language_issues:
                 print(f"  - [{issue.category}]: '{issue.original_text}' -> {issue.suggestion}")
+        
+        with open("qualidade.json", "w", encoding="utf-8") as f:
+            json.dump(q_data.model_dump(), f, indent=4, ensure_ascii=False)
+            print("\n💾 Arquivo 'qualidade.json' salvo com sucesso.")
+
     
     # 2. TESTE DE OTIMIZAÇÃO (Melhoria Estratégica)
     print("\n" + "="*50)
@@ -215,6 +220,10 @@ def test_full_pipeline():
         print("\nTop Recomendações ATS:")
         for rec in ats_data.recommendations[:3]:
             print(f"  - {rec}")
+        
+        with open("ats.json", "w", encoding="utf-8") as f:
+            json.dump(ats_data.model_dump(), f, indent=4, ensure_ascii=False)
+            print("\n💾 Arquivo 'ats.json' salvo com sucesso.")
 
 if __name__ == "__main__":
     try:
