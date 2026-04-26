@@ -75,6 +75,7 @@ ats_agent = Agent(
     model=model_instance,
     instructions=ATS_AGENT_INSTRUCTIONS,
     output_schema=AtsAnalysis,
+    pre_hooks=[pi_guardrail],
     debug_mode=True,
 )
 
@@ -84,6 +85,7 @@ quality_agent = Agent(
     model=model_instance,
     instructions=QUALITY_AGENT_INSTRUCTIONS,
     output_schema=ResumeQualityAnalysis,
+    pre_hooks=[pi_guardrail],
     markdown=False,
     debug_mode=True,
 )
