@@ -1,174 +1,102 @@
 # AdaptaAi - Backend
 
-Backend da aplicação AdaptaAi, uma API para otimização de currículos com análise ATS e Human-in-the-Loop (HITL).
+Backend da aplicação AdaptaAi, uma plataforma inteligente para otimização estratégica de currículos usando IA (Gemini), análise ATS avançada e auditoria de qualidade.
 
-## 🚀 Tecnologias
+## 🚀 Tecnologias e Frameworks
 
-- **FastAPI** - Framework web Python
-- **SQLModel** - ORM para banco de dados
-- **SQLite/PostgreSQL** - Banco de dados
-- **Docker** - Containerização
-- **LangSmith** - Observabilidade
+- **FastAPI** - Framework web de alta performance.
+- **Agno (Phidata)** - Framework para orquestração de Agentes de IA e Workflows.
+- **Google Gemini (2.5 Flash)** - LLM para processamento de linguagem natural.
+- **SQLModel** - ORM moderno para interação com banco de dados.
+- **LangSmith** - Rastreamento e observabilidade da IA.
+- **PyPDF** - Extração de texto de documentos PDF.
+
+## 🧠 Arquitetura de IA (Agentes)
+
+O sistema utiliza múltiplos agentes especializados com instruções rigorosas:
+
+1.  **Vacancy Agent**: Extrai ferramentas, habilidades e frases-chave de descrições de vagas.
+2.  **Resume Agent**: Converte currículos de texto livre para o formato **JSON Resume** estruturado.
+3.  **Quality Agent**: Realiza auditoria 360º (Gramática, Branding, Senioridade Percebida e Escaneabilidade).
+4.  **ATS Agent**: Calcula score de compatibilidade (0-100) e identifica lacunas técnicas/comportamentais.
+5.  **Upgrade Agent**: Otimiza o currículo usando a **Metodologia STAR** (Situação, Tarefa, Ação, Resultado).
+6.  **Enricher Agent**: Integra informações adicionais e links de perfis (LinkedIn/GitHub).
 
 ## 📋 Pré-requisitos
 
 - Python 3.11+
-- Docker e Docker Compose (opcional)
-- pip ou poetry
+- Google AI API Key (Gemini)
+- SQLite (padrão) ou PostgreSQL
 
 ## ⚙️ Configuração
 
-### 1. Clone o repositório
-
-```bash
-git clone <url-do-repositorio>
-cd AdaptaAi-BACKEND
-```
-
-### 2. Crie o ambiente virtual
+### 1. Instalação
 
 ```bash
 python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-```
-
-### 3. Instale as dependências
-
-```bash
+source venv/bin/activate  # ou venv\Scripts\activate no Windows
 pip install -r requirements.txt
 ```
 
-### 4. Configure as variáveis de ambiente
-
-O arquivo `.env` já está configurado com os valores padrão. Para personalizar, edite o arquivo `.env`:
+### 2. Variáveis de Ambiente (.env)
 
 ```env
-# Database
+GOOGLE_API_KEY=sua-chave-gemini
 DATABASE_URL=sqlite:///./database.db
-
-# LangSmith (Observability)
 LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=sua-api-key
-LANGSMITH_PROJECT=Adaptaai
-
-# Google AI (Gemini)
-GOOGLE_API_KEY=sua-api-key
-
-# CORS
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-
-# Server
-HOST=0.0.0.0
-PORT=8000
+LANGSMITH_API_KEY=sua-chave-langsmith
+CORS_ORIGINS=http://localhost:5173
 ```
 
 ## 🏃‍♂️ Como Rodar
 
-### Opção 1: Local (Desenvolvimento)
-
 ```bash
-# Ative o ambiente virtual e execute
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload
 ```
 
-A API estará disponível em: **http://localhost:8000**
+## 📚 Documentação da API (Endpoints Principais)
 
-### Opção 2: Docker Compose (Produção com PostgreSQL)
+### Autenticação
+- `POST /api/v1/auth/register`: Registro de usuário.
+- `POST /api/v1/auth/login`: Login e obtenção de Token JWT.
+- `GET /api/v1/auth/users/me`: Dados do usuário logado.
 
-```bash
-docker-compose up --build
-```
+### Gestão de Currículos
+- `POST /api/v1/resumes/upload`: Upload de PDF e extração de texto.
+- `GET /api/v1/resumes/`: Lista currículos do usuário.
+- `GET /api/v1/resumes/{id}`: Detalhes do currículo e dados processados.
 
-## 📚 Documentação da API
-
-Após iniciar o servidor, acesse:
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### Endpoints Principais
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| GET | `/` | Status do servidor |
-| POST | `/api/v1/auth/register` | Registrar usuário |
-| POST | `/api/v1/auth/login` | Login |
-| POST | `/api/v1/resumes/` | Criar currículo |
-| GET | `/api/v1/resumes/` | Listar currículos |
-| POST | `/api/v1/resumes/{id}/analyze` | Analisar currículo |
-
-## 🔗 Conexão com Front-end
-
-O backend está configurado para aceitar requisições CORS do front-end rodando em:
-
-- `http://localhost:5173` (Vite - Desenvolvimento)
-- `http://localhost:3000` (React - Alternativa)
-
-### Configuração CORS (app/main.py)
-
-```python
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-```
-
-## 🗄️ Banco de Dados
-
-### SQLite (Desenvolvimento)
-
-O banco SQLite é criado automaticamente na primeira execução em `database.db`.
-
-### PostgreSQL (Produção)
-
-Use Docker Compose para subir o PostgreSQL:
-
-```bash
-docker-compose up db
-```
-
-## 🧪 Testes
-
-```bash
-pytest
-```
+### Inteligência e Otimização
+- `POST /api/v1/resumes/analyze-quality`: Auditoria gramatical e de branding.
+- `POST /api/v1/resumes/check-ats`: Cálculo de score e match de palavras-chave para uma vaga.
+- `POST /api/v1/resumes/optimize`: Gera versão otimizada baseada em uma vaga.
+- `POST /api/v1/resumes/full-pipeline`: Executa Quality → ATS → Optimize em sequência.
+- `POST /api/v1/resumes/adapt-full`: Atalho para Upload de PDF + Pipeline completo.
 
 ## 📁 Estrutura do Projeto
 
-```
+```text
 AdaptaAi-BACKEND/
+├── agents/              # Inteligência Artificial
+│   ├── schemas/        # Schemas Pydantic para saída dos agentes
+│   ├── instructions.py # Prompts e regras de negócio da IA
+│   ├── models.py       # Definição e configuração dos Agentes
+│   └── workflow.py     # Orquestração de workflows lineares
 ├── app/
-│   ├── api/          # Rotas da API
-│   ├── core/         # Configurações principais
-│   ├── db/           # Conexão com banco de dados
-│   ├── models/       # Modelos de dados
-│   ├── schemas/      # Schemas Pydantic
-│   └── services/     # Serviços de negócio
-├── agents/           # Agentes de IA
-├── .env              # Variáveis de ambiente
-├── compose.yaml      # Docker Compose
-├── Dockerfile        # Configuração Docker
-└── requirements.txt  # Dependências Python
+│   ├── api/v1/         # Endpoints e rotas da API
+│   ├── core/           # Segurança (JWT) e configurações
+│   ├── models/         # Modelos SQLModel (User, Resume)
+│   └── services/       # Lógica de integração Workflow-API
+├── database.db         # Banco de dados local (SQLite)
+└── requirements.txt    # Dependências do projeto
 ```
 
-## 🔑 Variáveis de Ambiente
+## 🛡️ Diferenciais Técnicos
 
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `DATABASE_URL` | URL de conexão com banco | `sqlite:///./database.db` |
-| `DB_PASSWORD` | Senha do PostgreSQL | `adaptaai_secret_password` |
-| `LANGSMITH_API_KEY` | API Key LangSmith | - |
-| `GOOGLE_API_KEY` | API Key Google AI | - |
-| `SECRET_KEY` | Chave secreta JWT | `adaptaai` |
-| `CORS_ORIGINS` | Origens permitidas | `http://localhost:5173` |
-| `PORT` | Porta do servidor | `8000` |
-
-## 🤝 Integração com Front-end
-
-Para mais detalhes sobre a integração, consulte o README do [Front-end](../Adapta-AI-FRONT-END/README.md).
+- **Metodologia STAR**: A IA reescreve conquistas focando em resultados mensuráveis.
+- **Humanização**: Análise de voluntariado e indicadores de impacto social.
+- **Validação de Schema**: Todas as saídas da IA são validadas via Pydantic para garantir integridade.
+- **Observabilidade**: Integração nativa com LangSmith para monitorar performance dos agentes.
 
 ## 📝 Licença
 

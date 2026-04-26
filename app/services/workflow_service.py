@@ -32,74 +32,51 @@ class WorkflowService:
     ) -> Dict[str, Any]:
         """
         Executa otimização completa do currículo para a vaga.
-        
-        Fluxo completo sem HITL:
-        1. Parse da vaga (vacancy_agent)
-        2. Parse do currículo (resume_agent)
-        3. Geração do currículo otimizado (resume_upgrade_agent)
-        
-        Returns:
-            Dict com:
-            - optimized_resume: ResumeScheme (dict)
-            - vacancy_analysis: VacancyKeyThemes (dict)
-            - parsed_original: ResumeScheme (dict)
         """
-        logger.info("Executando otimização estratégica (fluxo completo).")
+        logger.info("Executando otimização estratégica.")
         
-        additional_data = {
-            "vaga": vaga,
-            "curriculo": curriculo,
-            "info_adicional": info_adicional or ""
-        }
+        response = self.optimizer_wf.run(
+            vaga=vaga, 
+            curriculo=curriculo, 
+            info_adicional=info_adicional or ""
+        )
         
-        response = self.optimizer_wf.run(additional_data=additional_data)
-        
-        # Extrai resultados dos steps
+        # Extrai resultados dos steps mapeados no StepOutput
         step_outputs = getattr(response, 'step_outputs', {})
         
-        vacancy_analysis = None
-        parsed_original = None
-        optimized_resume = None
+        vacancy_analysis = step_outputs.get("Parse Vacancy")
+        parsed_original = step_outputs.get("Parse Resume")
+        optimized_resume = step_outputs.get("Generate Optimized Resume")
         
-        for step_name, output in step_outputs.items():
-            if "Parse Vacancy" in step_name and output:
-                vacancy_analysis = output.model_dump() if hasattr(output, 'model_dump') else output
-            elif "Parse Resume" in step_name and output:
-                parsed_original = output.model_dump() if hasattr(output, 'model_dump') else output
-            elif "Generate Optimized Resume" in step_name and output:
-                optimized_resume = output.model_dump() if hasattr(output, 'model_dump') else output
-        
+        # Converte para dict se forem modelos Pydantic
+        def to_dict(obj):
+            return obj.model_dump() if hasattr(obj, 'model_dump') else obj
+
         return {
-            "optimized_resume": optimized_resume or (response.content.model_dump() if response.content else None),
-            "vacancy_analysis": vacancy_analysis,
-            "parsed_original": parsed_original,
+            "optimized_resume": to_dict(optimized_resume) if optimized_resume else to_dict(response.content),
+            "vacancy_analysis": to_dict(vacancy_analysis),
+            "parsed_original": to_dict(parsed_original),
             "raw_response": response
         }
 
     @traceable(run_type="chain", name="Analyze Quality Service")
     def analyze_quality(self, curriculo: str) -> ResumeQualityAnalysis:
         """
-        Executa auditoria de qualidade (gramática, branding, estrutura).
-        
-        Returns:
-            ResumeQualityAnalysis com scores e recomendações
+        Executa auditoria de qualidade.
+        O workflow agora faz o parse automático antes da análise.
         """
         logger.info("Executando auditoria de qualidade.")
-        response = self.quality_wf.run(content=curriculo)
+        response = self.quality_wf.run(raw_resume=curriculo)
         return response.content
 
     @traceable(run_type="chain", name="Check ATS Service")
     def check_ats(self, vaga: str, curriculo: str) -> AtsAnalysis:
         """
-        Calcula score ATS e compatibilidade entre currículo e vaga.
-        
-        Returns:
-            AtsAnalysis com score, matched/missing keywords e recomendações
+        Calcula score ATS.
+        O workflow agora estrutura vaga e currículo antes da comparação.
         """
         logger.info("Executando análise ATS.")
-        response = self.ats_wf.run(
-            content=f"VAGA:\n{vaga}\n\nCURRÍCULO:\n{curriculo}"
-        )
+        response = self.ats_wf.run(vaga=vaga, curriculo=curriculo)
         return response.content
 
     def full_pipeline(
@@ -110,21 +87,13 @@ class WorkflowService:
     ) -> Dict[str, Any]:
         """
         Pipeline completo: Quality → ATS → Optimize.
-        
-        Executa todas as análises e otimização em sequência.
-        
-        Returns:
-            Dict com:
-            - quality_analysis: ResumeQualityAnalysis
-            - ats_analysis: AtsAnalysis
-            - optimized_resume: ResumeScheme
         """
         logger.info("Executando pipeline completo.")
         
-        # 1. Análise de qualidade do currículo original
+        # 1. Análise de qualidade (usa o workflow que já faz parse)
         quality_result = self.analyze_quality(curriculo)
         
-        # 2. Análise ATS do currículo original vs vaga
+        # 2. Análise ATS (usa o workflow que já faz parse da vaga e currículo)
         ats_result = self.check_ats(vaga, curriculo)
         
         # 3. Otimização do currículo
