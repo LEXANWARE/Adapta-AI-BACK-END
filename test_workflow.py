@@ -202,9 +202,11 @@ def test_full_pipeline():
         )
         
         if opt_response and opt_response.content:
-            # Aqui opt_response.content já é um objeto ResumeScheme
-            optimized_resume = opt_response.content
-            if hasattr(optimized_resume, "basics"):
+            # Extrai o currículo do dicionário de resultados
+            content = opt_response.content
+            optimized_resume = content.get("optimized_resume") if isinstance(content, dict) else content
+            
+            if optimized_resume and hasattr(optimized_resume, "basics"):
                 print(f"✅ Currículo Otimizado Gerado para: {optimized_resume.basics.name}")
                 print(f"📈 Resumo Proposto: {optimized_resume.basics.summary[:100]}...")
                 

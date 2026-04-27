@@ -41,19 +41,19 @@ class WorkflowService:
             info_adicional=info_adicional or ""
         )
         
-        # Extrai resultados dos steps mapeados no StepOutput
-        step_outputs = getattr(response, 'step_outputs', {})
+        # O content agora é um dicionário contendo os resultados de todos os passos
+        data = response.content or {}
         
-        vacancy_analysis = step_outputs.get("Parse Vacancy")
-        parsed_original = step_outputs.get("Parse Resume")
-        optimized_resume = step_outputs.get("Generate Optimized Resume")
+        vacancy_analysis = data.get("vacancy_analysis")
+        parsed_original = data.get("parsed_original")
+        optimized_resume = data.get("optimized_resume")
         
         # Converte para dict se forem modelos Pydantic
         def to_dict(obj):
             return obj.model_dump() if hasattr(obj, 'model_dump') else obj
 
         return {
-            "optimized_resume": to_dict(optimized_resume) if optimized_resume else to_dict(response.content),
+            "optimized_resume": to_dict(optimized_resume),
             "vacancy_analysis": to_dict(vacancy_analysis),
             "parsed_original": to_dict(parsed_original),
             "raw_response": response

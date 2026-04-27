@@ -57,7 +57,13 @@ class ResumeOptimizerWorkflow(Workflow):
         if not final_res or not final_res.content or isinstance(final_res.content, str) and "error" in final_res.content.lower():
             raise Exception(f"Erro ao gerar currículo otimizado: {final_res.content}")
 
-        return StepOutput(content=final_res.content)
+        return StepOutput(
+            content={
+                "optimized_resume": final_res.content,
+                "vacancy_analysis": vacancy_res.content,
+                "parsed_original": resume_res.content
+            }
+        )
 
 class ResumeQualityWorkflow(Workflow):
     """
