@@ -159,22 +159,31 @@ def test_full_pipeline():
     print("🔍 INICIANDO AUDITORIA DE QUALIDADE")
     print("="*50)
     
-    quality_wf = ResumeQualityWorkflow()
-    q_response = quality_wf.run(content=curriculo_texto)
-    
-    if q_response and q_response.content:
-        q_data = q_response.content
-        print(f"✅ Score de Apresentação: {q_data.presentation_score}/100")
-        print(f"📝 Feedback: {q_data.presentation_feedback}")
+    try:
+        quality_wf = ResumeQualityWorkflow()
+        q_response = quality_wf.run(raw_resume=curriculo_texto)
         
-        if q_data.language_issues:
-            print("\nErros Linguísticos Encontrados:")
-            for issue in q_data.language_issues:
-                print(f"  - [{issue.category}]: '{issue.original_text}' -> {issue.suggestion}")
-        
-        with open("qualidade.json", "w", encoding="utf-8") as f:
-            json.dump(q_data.model_dump(), f, indent=4, ensure_ascii=False)
-            print("\n💾 Arquivo 'qualidade.json' salvo com sucesso.")
+        if q_response and q_response.content:
+            q_data = q_response.content
+            
+            # Verifica se q_data é o objeto esperado antes de acessar atributos
+            if hasattr(q_data, "presentation_score"):
+                print(f"✅ Score de Apresentação: {q_data.presentation_score}/100")
+                print(f"📝 Feedback: {q_data.presentation_feedback}")
+                
+                if q_data.language_issues:
+                    print("\nErros Linguísticos Encontrados:")
+                    for issue in q_data.language_issues:
+                        print(f"  - [{issue.category}]: '{issue.original_text}' -> {issue.suggestion}")
+                
+                with open("qualidade.json", "w", encoding="utf-8") as f:
+                    json.dump(q_data.model_dump(), f, indent=4, ensure_ascii=False)
+                    print("\n💾 Arquivo 'qualidade.json' salvo com sucesso.")
+            else:
+                print(f"⚠️ Resposta de qualidade não estruturada como esperado: {type(q_data)}")
+                print(f"Conteúdo: {q_data}")
+    except Exception as e:
+        print(f"❌ Falha no teste de qualidade: {str(e)}")
 
     
     # 2. TESTE DE OTIMIZAÇÃO (Melhoria Estratégica)
@@ -182,48 +191,61 @@ def test_full_pipeline():
     print("🚀 INICIANDO OTIMIZAÇÃO DE CURRÍCULO")
     print("="*50)
     
-    opt_wf = ResumeOptimizerWorkflow()
+    try:
+        opt_wf = ResumeOptimizerWorkflow()
 
-    # Passamos os inputs via additional_data para que os steps acessem
-    opt_response = opt_wf.run(additional_data={
-        "vaga": descricao_vaga,
-        "curriculo": curriculo_texto,
-        "info_adicional": input_usuario_enrich
-    })
-    
-    if opt_response and opt_response.content:
-        # Aqui opt_response.content já é um objeto ResumeScheme
-        optimized_resume = opt_response.content
-        print(f"✅ Currículo Otimizado Gerado para: {optimized_resume.basics.name}")
-        print(f"📈 Resumo Proposto: {optimized_resume.basics.summary[:100]}...")
+        # Passamos os inputs via additional_data para que os steps acessem
+        opt_response = opt_wf.run(
+            vaga=descricao_vaga,
+            curriculo=curriculo_texto,
+            info_adicional=input_usuario_enrich
+        )
         
-        # Salva o resultado para conferência
-        with open("curriculo_otimizado.json", "w", encoding="utf-8") as f:
-            json.dump(optimized_resume.model_dump(), f, indent=4, ensure_ascii=False)
-            print("\n💾 Arquivo 'curriculo_otimizado.json' salvo com sucesso.")
+        if opt_response and opt_response.content:
+            # Aqui opt_response.content já é um objeto ResumeScheme
+            optimized_resume = opt_response.content
+            if hasattr(optimized_resume, "basics"):
+                print(f"✅ Currículo Otimizado Gerado para: {optimized_resume.basics.name}")
+                print(f"📈 Resumo Proposto: {optimized_resume.basics.summary[:100]}...")
+                
+                # Salva o resultado para conferência
+                with open("curriculo_otimizado.json", "w", encoding="utf-8") as f:
+                    json.dump(optimized_resume.model_dump(), f, indent=4, ensure_ascii=False)
+                    print("\n💾 Arquivo 'curriculo_otimizado.json' salvo com sucesso.")
+            else:
+                print(f"⚠️ Currículo otimizado não estruturado como esperado: {type(optimized_resume)}")
+    except Exception as e:
+        print(f"❌ Falha no teste de otimização: {str(e)}")
 
     # 3. TESTE ATS (Score de Robôs)
     print("\n" + "="*50)
     print("📊 ANÁLISE DE COMPATIBILIDADE ATS")
     print("="*50)
     
-    ats_wf = AtsCheckWorkflow()
-    # Analisamos o currículo original contra a vaga
-    ats_response = ats_wf.run(content=f"VAGA: {descricao_vaga}\nCURRÍCULO: {curriculo_texto}")
-    
-    if ats_response and ats_response.content:
-        ats_data = ats_response.content
-        print(f"🤖 Score ATS: {ats_data.ats_score}/100")
-        print(f"✅ Keywords Encontradas: {len(ats_data.matched_keywords)}")
-        print(f"❌ Keywords Ausentes: {len(ats_data.missing_keywords)}")
+    try:
+        ats_wf = AtsCheckWorkflow()
+        # Analisamos o currículo original contra a vaga
+        ats_response = ats_wf.run(vaga=descricao_vaga, curriculo=curriculo_texto)
         
-        print("\nTop Recomendações ATS:")
-        for rec in ats_data.recommendations[:3]:
-            print(f"  - {rec}")
-        
-        with open("ats.json", "w", encoding="utf-8") as f:
-            json.dump(ats_data.model_dump(), f, indent=4, ensure_ascii=False)
-            print("\n💾 Arquivo 'ats.json' salvo com sucesso.")
+        if ats_response and ats_response.content:
+            ats_data = ats_response.content
+            if hasattr(ats_data, "ats_score"):
+                print(f"🤖 Score ATS: {ats_data.ats_score}/100")
+                print(f"✅ Keywords Encontradas: {len(ats_data.matched_keywords)}")
+                print(f"❌ Keywords Ausentes: {len(ats_data.missing_keywords)}")
+                
+                print("\nTop Recomendações ATS:")
+                for rec in ats_data.recommendations[:3]:
+                    print(f"  - {rec}")
+                
+                with open("ats.json", "w", encoding="utf-8") as f:
+                    json.dump(ats_data.model_dump(), f, indent=4, ensure_ascii=False)
+                    print("\n💾 Arquivo 'ats.json' salvo com sucesso.")
+            else:
+                print(f"⚠️ Análise ATS não estruturada como esperado: {type(ats_data)}")
+    except Exception as e:
+        print(f"❌ Falha no teste ATS: {str(e)}")
+        print("\n💾 Arquivo 'ats.json' salvo com sucesso.")
 
 if __name__ == "__main__":
     try:

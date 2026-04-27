@@ -1,30 +1,31 @@
-ARG PYTHON_VERSION=3.13.9
-FROM python:${PYTHON_VERSION}-slim as base
+# Estágio Único: Build e Runtime
+FROM python:3.13-slim
 
+# Evita que o Python gere arquivos .pyc e garante que o log seja enviado ao terminal
 ENV PYTHONDONTWRITEBYTECODE=1
-
 ENV PYTHONUNBUFFERED=1
 
+# Define o diretório de trabalho
 WORKDIR /app
 
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
+# Instala dependências de sistema necessárias para compilação de pacotes como grpcio e cryptography
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    python -m pip install -r requirements.txt
+# Copia apenas o requirements primeiro para aproveitar o cache do Docker
+COPY requirements.txt .
 
-USER appuser
+# Instala as dependências do Python
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
+# Copia o restante do código da aplicação
 COPY . .
 
+# Expõe a porta que o FastAPI utilizará
 EXPOSE 8000
 
-CMD gunicorn 'venv.Lib.site-packages.fastapi.middleware.wsgi' --bind=0.0.0.0:8000
+# Comando para iniciar a aplicação com Uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

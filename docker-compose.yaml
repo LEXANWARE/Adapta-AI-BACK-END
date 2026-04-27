@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: .
+    container_name: adaptaai_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      # Evita que a venv local do host interfira no container
+      - /app/venv/
+    restart: always
+    networks:
+      - adaptaai_network
+
+networks:
+  adaptaai_network:
+    driver: bridge

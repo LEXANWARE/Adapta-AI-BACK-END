@@ -1,5 +1,4 @@
 import logging
-from typing import Any, Dict, Optional
 from agno.workflow import Step, Workflow, StepOutput
 from langsmith import traceable
 from agents.models import (
@@ -33,14 +32,18 @@ class ResumeOptimizerWorkflow(Workflow):
         logger.info("Iniciando Workflow de Otimização")
 
         # 1. Parse da Vaga
-        vacancy_res = self.run_step(step=self.steps[0], input=vaga)
+        vacancy_res = self.steps[0].agent.run(vaga)
+        if not vacancy_res or not vacancy_res.content or isinstance(vacancy_res.content, str) and "error" in vacancy_res.content.lower():
+            raise Exception(f"Erro ao processar vaga: {vacancy_res.content}")
 
         # 2. Parse do Currículo
-        resume_res = self.run_step(step=self.steps[1], input=curriculo)
+        resume_res = self.steps[1].agent.run(curriculo)
+        if not resume_res or not resume_res.content or isinstance(resume_res.content, str) and "error" in resume_res.content.lower():
+            raise Exception(f"Erro ao processar currículo: {resume_res.content}")
 
         # 3. Geração do Currículo Otimizado
         upgrade_input = f"""
-        CURRÍCULO ORIGINAL (ESTRUTURADO):
+        CURRÍCULO ESTRUTURADO:
         {resume_res.content}
 
         ANÁLISE DA VAGA:
@@ -50,16 +53,11 @@ class ResumeOptimizerWorkflow(Workflow):
         {info_adicional}
         """
 
-        final_res = self.run_step(step=self.steps[2], input=upgrade_input)
+        final_res = self.steps[2].agent.run(upgrade_input)
+        if not final_res or not final_res.content or isinstance(final_res.content, str) and "error" in final_res.content.lower():
+            raise Exception(f"Erro ao gerar currículo otimizado: {final_res.content}")
 
-        return StepOutput(
-            content=final_res.content,
-            step_outputs={
-                "Parse Vacancy": vacancy_res.content,
-                "Parse Resume": resume_res.content,
-                "Generate Optimized Resume": final_res.content
-            }
-        )
+        return StepOutput(content=final_res.content)
 
 class ResumeQualityWorkflow(Workflow):
     """
@@ -81,21 +79,18 @@ class ResumeQualityWorkflow(Workflow):
         logger.info("Iniciando Workflow de Qualidade")
         
         # 1. Parse do Currículo
-        resume_json = self.run_step(step=self.steps[0], input=raw_resume)
+        resume_json = self.steps[0].agent.run(raw_resume)
+        if not resume_json or not resume_json.content or isinstance(resume_json.content, str) and "error" in resume_json.content.lower():
+             raise Exception(f"Erro no parse do currículo: {resume_json.content}")
         
         # 2. Análise de Qualidade
-        quality_res = self.run_step(
-            step=self.steps[1], 
-            input=f"Analise a qualidade deste currículo estruturado: {resume_json.content}"
+        quality_res = self.steps[1].agent.run(
+            f"Analise a qualidade deste currículo estruturado: {resume_json.content}"
         )
+        if not quality_res or not quality_res.content or isinstance(quality_res.content, str) and "error" in quality_res.content.lower():
+             raise Exception(f"Erro na análise de qualidade: {quality_res.content}")
         
-        return StepOutput(
-            content=quality_res.content,
-            step_outputs={
-                "Parse Resume": resume_json.content,
-                "Quality Analysis": quality_res.content
-            }
-        )
+        return StepOutput(content=quality_res.content)
 
 class AtsCheckWorkflow(Workflow):
     """
@@ -118,22 +113,20 @@ class AtsCheckWorkflow(Workflow):
         logger.info("Iniciando Workflow ATS")
         
         # 1. Estrutura o Currículo
-        res_json = self.run_step(step=self.steps[0], input=curriculo)
+        res_json = self.steps[0].agent.run(curriculo)
+        if not res_json or not res_json.content or isinstance(res_json.content, str) and "error" in res_json.content.lower():
+             raise Exception(f"Erro no parse do currículo (ATS): {res_json.content}")
         
         # 2. Estrutura a Vaga
-        vaga_json = self.run_step(step=self.steps[1], input=vaga)
+        vaga_json = self.steps[1].agent.run(vaga)
+        if not vaga_json or not vaga_json.content or isinstance(vaga_json.content, str) and "error" in vaga_json.content.lower():
+             raise Exception(f"Erro no parse da vaga (ATS): {vaga_json.content}")
         
         # 3. Auditoria ATS
-        ats_res = self.run_step(
-            step=self.steps[2],
-            input=f"CURRÍCULO ESTRUTURADO: {res_json.content}\n\nVAGA ESTRUTURADA: {vaga_json.content}"
+        ats_res = self.steps[2].agent.run(
+            f"CURRÍCULO ESTRUTURADO: {res_json.content}\n\nVAGA ESTRUTURADA: {vaga_json.content}"
         )
+        if not ats_res or not ats_res.content or isinstance(ats_res.content, str) and "error" in ats_res.content.lower():
+             raise Exception(f"Erro no score ATS: {ats_res.content}")
         
-        return StepOutput(
-            content=ats_res.content,
-            step_outputs={
-                "Parse Resume": res_json.content,
-                "Parse Vacancy": vaga_json.content,
-                "ATS Scoring": ats_res.content
-            }
-        )
+        return StepOutput(content=ats_res.content)
