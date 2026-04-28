@@ -1,5 +1,6 @@
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
 
 from sqlmodel import Session, select
 from pydantic import BaseModel, EmailStr, Field
@@ -20,6 +21,8 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: str
+    plan_type: str
+    subscription_status: Optional[str] = None
 
 
 @router.get("/users/me", response_model=UserResponse)
@@ -29,14 +32,13 @@ def get_current_user_info(
 ):
     """
     Retorna informações do usuário autenticado.
-    
-    Use este endpoint para obter dados completos do usuário
-    após o login, já que o token JWT contém apenas o user_id.
     """
     return UserResponse(
         id=current_user.id,
         username=current_user.username,
-        email=current_user.email
+        email=current_user.email,
+        plan_type=current_user.plan_type,
+        subscription_status=current_user.subscription_status
     )
 
 

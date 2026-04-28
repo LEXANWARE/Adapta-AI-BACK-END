@@ -32,10 +32,16 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 # --- A FUNÇÃO QUE FALTAVA ---
+from app.core.plans import check_permission
+
+# ... (código anterior)
+
 def get_current_user(
     token: str = Depends(oauth2_scheme), 
     session: Session = Depends(get_session)
 ) -> User:
+    # ... (implementação existente)
+    # Certifique-se de que a implementação abaixo está correta conforme o arquivo original
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não foi possível validar as credenciais",
@@ -48,8 +54,19 @@ def get_current_user(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-        
+
     user = session.get(User, int(user_id))
     if user is None:
         raise credentials_exception
     return user
+
+def plan_required(permission: str):
+    """Dependência para exigir uma permissão específica do plano."""
+    def dependency(current_user: User = Depends(get_current_user)):
+        if not check_permission(current_user.plan_type, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Seu plano atual ({current_user.plan_type}) não permite esta ação. Faça upgrade para continuar."
+            )
+        return current_user
+    return dependency

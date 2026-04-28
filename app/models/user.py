@@ -7,3 +7,9 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     hashed_password: str
     is_active: bool = Field(default=True)
+    
+    # Campos para Pagamento/Stripe
+    stripe_customer_id: Optional[str] = Field(default=None, index=True)
+    subscription_id: Optional[str] = Field(default=None)
+    plan_type: str = Field(default="free")  # 'free', 'pro', 'premium'
+    subscription_status: Optional[str] = Field(default=None) # 'active', 'canceled', 'past_due'

@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from app.models.user import User
 from app.models.resume import Resume
 from app.db.session import get_session
-from app.core.security import get_current_user
+from app.core.security import get_current_user, plan_required
 from app.services.workflow_service import workflow_service
 from app.api.v1.endpoints.schemas.resumes import (
     ResumeSummary,
@@ -42,7 +42,7 @@ router = APIRouter()
 async def upload_resume(
     file: UploadFile = File(..., description="Arquivo PDF do currículo"),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_optimize"))
 ):
     """
     Faz upload de um currículo em PDF e extrai seu texto.
@@ -78,7 +78,7 @@ async def upload_resume(
 @router.get("/", response_model=List[ResumeSummary])
 async def list_resumes(
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_optimize"))
 ):
     """Lista todos os currículos do usuário."""
     statement = select(Resume).where(Resume.user_id == current_user.id).order_by(Resume.created_at.desc())
@@ -98,7 +98,7 @@ async def list_resumes(
 async def get_resume(
     resume_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_optimize"))
 ):
     """Obtém detalhes de um currículo específico."""
     resume = session.get(Resume, resume_id)
@@ -117,7 +117,7 @@ async def get_resume(
 async def delete_resume(
     resume_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_optimize"))
 ):
     """Deleta um currículo."""
     resume = session.get(Resume, resume_id)
@@ -136,7 +136,7 @@ async def delete_resume(
 async def optimize_resume(
     request: OptimizeRequest,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_optimize"))
 ):
     """
     Otimiza um currículo para uma vaga específica.
@@ -183,7 +183,7 @@ async def optimize_resume(
 async def analyze_quality(
     resume_id: int,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_analyze_quality"))
 ):
     """
     Executa auditoria de qualidade no currículo.
@@ -215,7 +215,7 @@ async def check_ats(
     resume_id: int,
     vacancy_text: str = Form(..., description="Descrição da vaga"),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_check_ats"))
 ):
     """
     Calcula score ATS de compatibilidade entre currículo e vaga.
@@ -248,7 +248,7 @@ async def check_ats(
 async def full_pipeline(
     request: FullPipelineRequest,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_use_full_pipeline"))
 ):
     """
     Pipeline completo: Quality → ATS → Optimize.
@@ -295,7 +295,7 @@ async def adapt_resume_full(
     vacancy_text: str = Form(..., description="Descrição da vaga"),
     additional_info: Optional[str] = Form(None, description="Informações adicionais"),
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(plan_required("can_use_adapt_full"))
 ):
     """
     Fluxo completo: Upload do PDF + Pipeline completo.

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.session import engine
-from app.api.v1.endpoints import auth, resumes
+from app.api.v1.endpoints import auth, resumes, payments
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
@@ -38,6 +38,11 @@ app.include_router(
     resumes.router,
     prefix="/api/v1/resumes",
     tags=["currículos"]
+)
+app.include_router(
+    payments.router,
+    prefix="/api/v1/payments",
+    tags=["pagamentos"]
 )
 
 @app.get("/")
