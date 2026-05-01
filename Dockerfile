@@ -1,31 +1,34 @@
-# Estágio Único: Build e Runtime
 FROM python:3.13-slim
 
-# Evita que o Python gere arquivos .pyc e garante que o log seja enviado ao terminal
+# 1. Install uv from the official binaries
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# 2. Prevent Python from writing .pyc files and enable live logging
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# Ensure the root binaries folder is in the path
+ENV PATH="/root/.local/bin:$PATH"
 
-# Define o diretório de trabalho
 WORKDIR /app
 
-# Instala dependências de sistema necessárias para compilação de pacotes como grpcio e cryptography
+# 3. Install minimal build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia apenas o requirements primeiro para aproveitar o cache do Docker
-COPY requirements.txt .
+# 4. Install dependencies using uv and a cache mount
+# This keeps builds fast even if you add new packages
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=requirements.txt,target=requirements.txt \
+    uv pip install --system --no-cache -r requirements.txt
 
-# Instala as dependências do Python
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copia o restante do código da aplicação
+# 5. Copy your project code
 COPY . .
 
-# Expõe a porta que o FastAPI utilizará
+# 6. Expose the FastAPI port
 EXPOSE 8000
 
-# Comando para iniciar a aplicação com Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 7. Start the app. 
+# We set PYTHONPATH=. to ensure 'import app' works from the root.
+# We use 'app.main' (module syntax) instead of 'app/main.py' for better reliability.
+CMD ["sh", "-c", "PYTHONPATH=. fastapi run app/main.py --port 8000 --host 0.0.0.0"]

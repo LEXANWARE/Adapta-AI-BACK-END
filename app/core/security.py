@@ -1,12 +1,13 @@
 import bcrypt
+import jwt
 from sqlmodel import Session
 from typing import Any, Union
-from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
 from app.db.session import get_session
+from app.core.plans import check_permission
 
 SECRET_KEY = "adaptaai"
 ALGORITHM = "HS256"
@@ -31,17 +32,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-# --- A FUNÇÃO QUE FALTAVA ---
-from app.core.plans import check_permission
-
-# ... (código anterior)
-
 def get_current_user(
     token: str = Depends(oauth2_scheme), 
     session: Session = Depends(get_session)
 ) -> User:
-    # ... (implementação existente)
-    # Certifique-se de que a implementação abaixo está correta conforme o arquivo original
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não foi possível validar as credenciais",
@@ -52,7 +46,7 @@ def get_current_user(
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+    except jwt.PyJWTError:
         raise credentials_exception
 
     user = session.get(User, int(user_id))

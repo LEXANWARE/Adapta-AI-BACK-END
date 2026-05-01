@@ -1,19 +1,22 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: adaptaai_backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
+    # Volume mapping allows you to see code changes instantly without rebuilding
     volumes:
       - .:/app
-      # Evita que a venv local do host interfira no container
-      - /app/venv/
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+      - DATABASE_URL=postgresql://user:pass@db:5432/dbname # Example variable
     restart: always
     networks:
       - adaptaai_network
 
+# Only include this if you have other services (like a database) to connect to
 networks:
   adaptaai_network:
     driver: bridge
