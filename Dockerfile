@@ -29,4 +29,4 @@ EXPOSE 8000
 # 7. Start the app. 
 # We set PYTHONPATH=. to ensure 'import app' works from the root.
 # We use 'app.main' (module syntax) instead of 'app/main.py' for better reliability.
-CMD ["sh", "-c", "PYTHONPATH=. fastapi run app/main.py --port 8000 --host 0.0.0.0"]
+CMD ["sh", "-c", "PYTHONPATH=. fastapi run app/main.py --port ${PORT:-8000} --host 0.0.0.0"]
