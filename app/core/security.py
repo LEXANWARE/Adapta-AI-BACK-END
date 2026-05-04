@@ -1,7 +1,7 @@
 import bcrypt
 import jwt
 from jwt import PyJWKClient
-from sqlmodel import Session, select
+from sqlmodel import Session
 from typing import Any, Union
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
@@ -10,12 +10,26 @@ from app.models.user import User
 from app.db.session import get_session
 from app.core.plans import check_permission
 
+SECRET_KEY = "adaptaai"
+LOCAL_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 SUPABASE_URL = "https://gazidqznxtoaadrbsqfl.supabase.co"
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
-ALGORITHM = "RS256"
+SUPABASE_ALGORITHM = "RS256"
 
 jwks_client = PyJWKClient(JWKS_URL)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
+
+def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode = {"exp": expire, "sub": str(subject)}
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=LOCAL_ALGORITHM)
+    return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
@@ -38,7 +52,7 @@ def get_current_user(
         payload = jwt.decode(
             token, 
             signing_key.key, 
-            algorithms=[ALGORITHM],
+            algorithms=[SUPABASE_ALGORITHM],
             options={"verify_aud": False}
         )
         supabase_user_id = payload.get("sub")
