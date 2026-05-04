@@ -47,20 +47,31 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
+    print(f"--- INICIANDO VALIDAÇÃO DO TOKEN ---")
+    
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
+        print(f"Chave de assinatura obtida com sucesso.")
+        
         payload = jwt.decode(
             token, 
             signing_key.key, 
             algorithms=[SUPABASE_ALGORITHM],
-            options={"verify_aud": False}
+            options={
+                "verify_aud": False,
+                "verify_iss": False
+            }
         )
+        print(f"Token decodificado com sucesso. Payload: {payload}")
+        
         supabase_user_id = payload.get("sub")
         if supabase_user_id is None:
+            print("Erro: O token não possui o campo 'sub' (User ID).")
             raise credentials_exception
             
         user = session.get(User, 1)
         if user is None:
+            print("Criando usuário de fallback ID 1.")
             user = User(
                 id=1,
                 username="usuario_sistema",
@@ -73,9 +84,11 @@ def get_current_user(
             session.commit()
             session.refresh(user)
             
+        print("Usuário validado e retornado com sucesso.")
         return user
         
-    except Exception:
+    except Exception as e:
+        print(f"!!! ERRO FATAL NA VALIDAÇÃO DO TOKEN: {str(e)} !!!")
         raise credentials_exception
 
 def plan_required(permission: str):
