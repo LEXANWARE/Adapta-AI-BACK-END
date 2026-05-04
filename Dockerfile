@@ -16,11 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install dependencies using uv and a cache mount
-# This keeps builds fast even if you add new packages
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    uv pip install --system --no-cache -r requirements.txt
+# 4. Copy requirements and install dependencies
+COPY requirements.txt .
+RUN uv pip install --system -r requirements.txt
 
 # 5. Copy your project code
 COPY . .
