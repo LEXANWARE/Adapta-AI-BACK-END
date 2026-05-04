@@ -1,6 +1,7 @@
 import bcrypt
 import jwt
-from sqlmodel import Session
+from jwt import PyJWKClient
+from sqlmodel import Session, select
 from typing import Any, Union
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
@@ -9,22 +10,12 @@ from app.models.user import User
 from app.db.session import get_session
 from app.core.plans import check_permission
 
-SECRET_KEY = "adaptaai"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SUPABASE_URL = "https://gazidqznxtoaadrbsqfl.supabase.co"
+JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+ALGORITHM = "RS256"
 
-# Isso define que o token vem do endpoint /login
+jwks_client = PyJWKClient(JWKS_URL)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
-
-def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-    to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
@@ -41,26 +32,44 @@ def get_current_user(
         detail="Não foi possível validar as credenciais",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token, 
+            signing_key.key, 
+            algorithms=[ALGORITHM],
+            options={"verify_aud": False}
+        )
+        supabase_user_id = payload.get("sub")
+        if supabase_user_id is None:
             raise credentials_exception
-    except jwt.PyJWTError:
+            
+        user = session.get(User, 1)
+        if user is None:
+            user = User(
+                id=1,
+                username="usuario_sistema",
+                email=payload.get("email", "usuario@exemplo.com"),
+                hashed_password="...",
+                is_active=True,
+                plan_type="free"
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            
+        return user
+        
+    except Exception:
         raise credentials_exception
-
-    user = session.get(User, int(user_id))
-    if user is None:
-        raise credentials_exception
-    return user
 
 def plan_required(permission: str):
-    """Dependência para exigir uma permissão específica do plano."""
     def dependency(current_user: User = Depends(get_current_user)):
         if not check_permission(current_user.plan_type, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Seu plano atual ({current_user.plan_type}) não permite esta ação. Faça upgrade para continuar."
+                detail="Seu plano não permite esta ação"
             )
         return current_user
     return dependency
