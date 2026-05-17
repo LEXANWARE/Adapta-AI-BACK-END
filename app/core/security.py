@@ -74,8 +74,13 @@ def get_current_user(
                 email=payload.get("email", "usuario@exemplo.com"),
                 hashed_password="...",
                 is_active=True,
-                plan_type="free"
+                plan_type="premium"
             )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+        elif user.plan_type != "premium":
+            user.plan_type = "premium"
             session.add(user)
             session.commit()
             session.refresh(user)
