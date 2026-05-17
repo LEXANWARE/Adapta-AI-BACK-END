@@ -134,7 +134,7 @@ def get_current_user(
             }
         )
         return _get_or_create_supabase_user(session, payload, token)
-        
+
     except HTTPException:
         raise
     except Exception:
