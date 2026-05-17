@@ -1,13 +1,26 @@
+from sqlalchemy import inspect, text
 from sqlmodel import SQLModel
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.session import engine
 from app.api.v1.endpoints import auth, resumes, payments
+from app.models.user import User
+from app.models.resume import Resume
+
+def _migrate_user_supabase_id():
+  inspector = inspect(engine)
+  if "user" not in inspector.get_table_names():
+    return
+  columns = {col["name"] for col in inspector.get_columns("user")}
+  if "supabase_id" not in columns:
+    with engine.begin() as conn:
+      conn.execute(text("ALTER TABLE user ADD COLUMN supabase_id VARCHAR"))
 
 # Cria as tabelas
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+    _migrate_user_supabase_id()
 
 # Lifespan
 @asynccontextmanager

@@ -1,7 +1,9 @@
+import os
+import re
 import bcrypt
 import jwt
 from jwt import PyJWKClient
-from sqlmodel import Session
+from sqlmodel import Session, select
 from typing import Any, Union
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
@@ -9,12 +11,16 @@ from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
 from app.db.session import get_session
 from app.core.plans import check_permission
+from app.core.supabase_profile import fetch_profile_plan
 
 SECRET_KEY = "adaptaai"
 LOCAL_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-SUPABASE_URL = "https://gazidqznxtoaadrbsqfl.supabase.co"
+SUPABASE_URL = os.getenv(
+    "SUPABASE_URL",
+    "https://gazidqznxtoaadrbsqfl.supabase.co",
+)
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 
 jwks_client = PyJWKClient(JWKS_URL)
@@ -36,6 +42,70 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
+def _unique_username(session: Session, email: str, supabase_id: str) -> str:
+    base = re.sub(r"[^a-zA-Z0-9_]", "_", email.split("@")[0])[:40]
+    candidate = base if len(base) >= 3 else f"user_{supabase_id[:8]}"
+    if not session.exec(select(User).where(User.username == candidate)).first():
+        return candidate
+    suffix = supabase_id.replace("-", "")[:8]
+    return f"{candidate[:42]}_{suffix}"
+
+
+def _sync_plan_from_supabase(session: Session, user: User, supabase_id: str, token: str) -> User:
+    plan = fetch_profile_plan(supabase_id, token)
+    if plan and user.plan_type != plan:
+        user.plan_type = plan
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    return user
+
+
+def _get_or_create_supabase_user(
+    session: Session,
+    payload: dict,
+    token: str,
+) -> User:
+    supabase_id = payload.get("sub")
+    email = payload.get("email")
+    if not supabase_id or not email:
+        raise ValueError("Token Supabase sem sub ou email")
+
+    user = session.exec(select(User).where(User.supabase_id == supabase_id)).first()
+    if user is None:
+        user = session.exec(select(User).where(User.email == email)).first()
+        if user is not None:
+            user.supabase_id = supabase_id
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+        else:
+            user = User(
+                supabase_id=supabase_id,
+                username=_unique_username(session, email, supabase_id),
+                email=email,
+                hashed_password="supabase_oauth",
+                is_active=True,
+                plan_type="free",
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+
+    return _sync_plan_from_supabase(session, user, supabase_id, token)
+
+
+def _get_user_from_local_token(session: Session, token: str) -> User:
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[LOCAL_ALGORITHM])
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise ValueError("Token local sem sub")
+    user = session.get(User, int(user_id))
+    if user is None:
+        raise ValueError("Usuário não encontrado")
+    return user
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme), 
     session: Session = Depends(get_session)
@@ -49,9 +119,11 @@ def get_current_user(
     try:
         unverified_header = jwt.get_unverified_header(token)
         token_alg = unverified_header.get("alg")
-        
+
+        if token_alg == LOCAL_ALGORITHM:
+            return _get_user_from_local_token(session, token)
+
         signing_key = jwks_client.get_signing_key_from_jwt(token)
-        
         payload = jwt.decode(
             token, 
             signing_key.key, 
@@ -61,27 +133,10 @@ def get_current_user(
                 "verify_iss": False
             }
         )
+        return _get_or_create_supabase_user(session, payload, token)
         
-        supabase_user_id = payload.get("sub")
-        if supabase_user_id is None:
-            raise credentials_exception
-            
-        user = session.get(User, 1)
-        if user is None:
-            user = User(
-                id=1,
-                username="usuario_sistema",
-                email=payload.get("email", "usuario@exemplo.com"),
-                hashed_password="...",
-                is_active=True,
-                plan_type="free"
-            )
-            session.add(user)
-            session.commit()
-            session.refresh(user)
-            
-        return user
-        
+    except HTTPException:
+        raise
     except Exception:
         raise credentials_exception
 
