@@ -6,17 +6,29 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.getenv(
-    "SUPABASE_URL",
-    "https://gazidqznxtoaadrbsqfl.supabase.co",
+SUPABASE_URL = (
+    os.getenv("SUPABASE_URL")
+    or os.getenv("VITE_SUPABASE_URL")
+    or "https://gazidqznxtoaadrbsqfl.supabase.co"
 )
+
+
+def _get_supabase_anon_key() -> Optional[str]:
+    return (
+        os.getenv("SUPABASE_ANON_KEY")
+        or os.getenv("SUPABASE_PUBLISHABLE_KEY")
+        or os.getenv("VITE_SUPABASE_PUBLISHABLE_KEY")
+    )
 
 
 def fetch_profile_plan(supabase_user_id: str, access_token: str) -> Optional[str]:
     """Busca o plano do usuário na tabela profiles do Supabase."""
-    anon_key = os.getenv("SUPABASE_ANON_KEY") or os.getenv("VITE_SUPABASE_PUBLISHABLE_KEY")
+    anon_key = _get_supabase_anon_key()
     if not anon_key:
-        logger.warning("SUPABASE_ANON_KEY não configurada; plano não será sincronizado.")
+        logger.warning(
+            "Chave Supabase não configurada (SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY "
+            "ou VITE_SUPABASE_PUBLISHABLE_KEY); plano não será sincronizado."
+        )
         return None
 
     url = f"{SUPABASE_URL}/rest/v1/profiles"

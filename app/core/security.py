@@ -1,4 +1,3 @@
-import os
 import re
 import bcrypt
 import jwt
@@ -11,16 +10,12 @@ from fastapi.security import OAuth2PasswordBearer
 from app.models.user import User
 from app.db.session import get_session
 from app.core.plans import check_permission
-from app.core.supabase_profile import fetch_profile_plan
+from app.core.supabase_profile import SUPABASE_URL, fetch_profile_plan
 
 SECRET_KEY = "adaptaai"
 LOCAL_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-SUPABASE_URL = os.getenv(
-    "SUPABASE_URL",
-    "https://gazidqznxtoaadrbsqfl.supabase.co",
-)
 JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 
 jwks_client = PyJWKClient(JWKS_URL)
